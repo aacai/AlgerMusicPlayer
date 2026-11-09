@@ -134,6 +134,7 @@ export const usePlayerStore = defineStore('player', () => {
     prepareSongPlayback: playlist.prepareSongPlayback,
     addToNextPlay: playlist.addToNextPlay,
     removeFromPlayList: playlist.removeFromPlayList,
+    reorderPlayList: playlist.reorderPlayList,
     clearPlayAll: playlist.clearPlayAll,
     togglePlayMode: playlist.togglePlayMode,
     shufflePlayList: playlist.shufflePlayList,
@@ -151,6 +152,7 @@ export const usePlayerStore = defineStore('player', () => {
     // Favorite - Actions
     addToFavorite: favorite.addToFavorite,
     removeFromFavorite: favorite.removeFromFavorite,
+    reorderFavorite: favorite.reorderFavorite,
     addToDislikeList: favorite.addToDislikeList,
     removeFromDislikeList: favorite.removeFromDislikeList,
 
