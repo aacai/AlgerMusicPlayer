@@ -95,6 +95,19 @@ export const useFavoriteStore = defineStore('favorite', () => {
   };
 
   /**
+   * 手动拖拽调整收藏顺序（持久化到 localStorage 的 favoriteList）
+   */
+  const reorderFavorite = (from: number, to: number): void => {
+    const list = favoriteList.value;
+    if (from < 0 || to < 0 || from >= list.length || to >= list.length || from === to) return;
+    const newList = [...list];
+    const [moved] = newList.splice(from, 1);
+    newList.splice(to, 0, moved);
+    favoriteList.value = newList;
+    setLocalStorageItem('favoriteList', favoriteList.value);
+  };
+
+  /**
    * 初始化收藏列表（从服务器同步）
    */
   const initializeFavoriteList = async () => {
@@ -152,6 +165,7 @@ export const useFavoriteStore = defineStore('favorite', () => {
     removeFromFavorite,
     addToDislikeList,
     removeFromDislikeList,
+    reorderFavorite,
     initializeFavoriteList,
     isFavorite,
     isDisliked

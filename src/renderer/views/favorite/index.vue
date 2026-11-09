@@ -89,7 +89,7 @@
 
     <!-- Main Content -->
     <div class="flex-grow min-h-0 px-2" :class="setAnimationClass('animate__bounceInRight')">
-      <n-scrollbar ref="scrollbarRef" class="h-full pr-4" @scroll="handleScroll">
+      <n-scrollbar ref="scrollbarRef" class="h-full pr-4">
         <div
           v-if="favoriteList.length === 0"
           class="h-full flex flex-col items-center justify-center text-gray-400"
@@ -102,15 +102,10 @@
           <p>{{ t('favorite.emptyTip') }}</p>
         </div>
 
-        <div
-          v-else
-          class="space-y-1"
-          :class="{ 'max-w-[400px]': isComponent }"
-          :style="{ paddingBottom: contentPaddingBottom }"
-        >
-          <div class="favorite-list-section">
+        <div v-else class="space-y-1" :class="{ 'max-w-[400px]': isComponent }">
+          <div ref="favoriteListRef" class="favorite-list-section">
             <song-item
-              v-for="(song, index) in renderedItems"
+              v-for="(song, index) in favoriteSongs"
               :key="song.id"
               :item="song"
               :favorite="false"
@@ -126,9 +121,6 @@
               @select="handleSelect"
             />
           </div>
-
-          <!-- 未渲染项占位 -->
-          <div v-if="placeholderHeight > 0" :style="{ height: placeholderHeight + 'px' }" />
 
           <div v-if="isComponent" class="pt-4 text-center">
             <n-button text type="primary" @click="handleMore">
@@ -150,10 +142,6 @@
               </div>
             </div>
           </div>
-
-          <div v-if="noMore" class="text-center py-8 text-sm text-gray-400 dark:text-gray-500">
-            {{ t('common.noMore') }}
-          </div>
         </div>
       </n-scrollbar>
     </div>
@@ -167,8 +155,8 @@ import { useRouter } from 'vue-router';
 
 import { getMusicDetail } from '@/api/music';
 import SongItem from '@/components/common/SongItem.vue';
+import { useSongListDrag } from '@/composables/useSongListDrag';
 import { useDownload } from '@/hooks/useDownload';
-import { useProgressiveRender } from '@/hooks/useProgressiveRender';
 import { usePlayerStore } from '@/store';
 import type { SongResult } from '@/types/music';
 import { isElectron, setAnimationClass, setAnimationDelay } from '@/utils';
@@ -181,29 +169,8 @@ const loading = ref(false);
 const noMore = ref(false);
 const scrollbarRef = ref();
 
-// 手工虚拟化
-const {
-  renderedItems,
-  placeholderHeight,
-  contentPaddingBottom,
-  handleScroll: progressiveScroll,
-  resetRenderLimit
-} = useProgressiveRender({
-  items: favoriteSongs,
-  itemHeight: 64,
-  listSelector: '.favorite-list-section',
-  initialCount: 40,
-  onReachEnd: () => {
-    if (!loading.value && !noMore.value) {
-      currentPage.value++;
-      getFavoriteSongs();
-    }
-  }
-});
-
-const handleScroll = (e: Event) => {
-  progressiveScroll(e);
-};
+// 拖拽排序容器
+const favoriteListRef = ref<HTMLElement | null>(null);
 
 // 多选相关
 const isSelecting = ref(false);
@@ -241,22 +208,8 @@ const handleBatchDownload = async () => {
   cancelSelect();
 };
 
-// 排序相关
+// 排序相关（升/降序仅决定展示方向，拖拽排序会以“规范顺序”正确回写）
 const isDescending = ref(true);
-
-const toggleSort = (descending: boolean) => {
-  if (isDescending.value === descending) return;
-  isDescending.value = descending;
-  currentPage.value = 1;
-  favoriteSongs.value = [];
-  noMore.value = false;
-  resetRenderLimit();
-  getFavoriteSongs();
-};
-
-// 无限滚动相关
-const pageSize = 100;
-const currentPage = ref(1);
 
 const props = defineProps({
   isComponent: {
@@ -265,69 +218,89 @@ const props = defineProps({
   }
 });
 
-// 获取当前页的收藏歌曲ID
-const getCurrentPageIds = () => {
-  let ids = [...favoriteList.value];
-
-  if (isDescending.value) {
-    ids = ids.reverse();
-  }
-
-  const startIndex = (currentPage.value - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  return ids.slice(startIndex, endIndex);
-};
-
-// 获取收藏歌曲详情
+// 拉取全部收藏歌曲详情（翻页取完，以支持整列拖拽排序）
 const getFavoriteSongs = async () => {
   if (favoriteList.value.length === 0) {
     favoriteSongs.value = [];
+    noMore.value = true;
     return;
   }
 
+  // 组件模式（侧边/迷你）只展示前 16 首，不触发拖拽
   if (props.isComponent && favoriteSongs.value.length >= 16) {
     return;
   }
 
   loading.value = true;
   try {
-    const currentIds = getCurrentPageIds();
+    // 展示顺序：降序时反转规范列表
+    const displayIds = isDescending.value
+      ? [...favoriteList.value].reverse()
+      : [...favoriteList.value];
 
-    const musicIds = currentIds.filter((id) => typeof id === 'number') as number[];
-
-    let neteaseSongs: SongResult[] = [];
-    if (musicIds.length > 0) {
+    const pageSize = 100;
+    const songs: SongResult[] = [];
+    for (let start = 0; start < displayIds.length; start += pageSize) {
+      const chunk = displayIds.slice(start, start + pageSize);
+      const musicIds = chunk.filter((id) => typeof id === 'number') as number[];
+      if (musicIds.length === 0) continue;
       const res = await getMusicDetail(musicIds);
-      if (res.data.songs) {
-        neteaseSongs = res.data.songs.map((song: SongResult) => ({
-          ...song,
-          picUrl: song.al?.picUrl || '',
-          source: 'netease'
-        }));
+      if (res.data?.songs) {
+        songs.push(
+          ...res.data.songs.map((song: SongResult) => ({
+            ...song,
+            picUrl: song.al?.picUrl || '',
+            source: 'netease'
+          }))
+        );
       }
     }
 
-    const newSongs = currentIds
-      .map((id) => {
-        const strId = String(id);
-        const found = neteaseSongs.find((song) => String(song.id) === strId);
-        return found;
-      })
+    // 按展示顺序对齐（接口返回顺序不一定与请求一致）
+    const songMap = new Map(songs.map((song) => [String(song.id), song]));
+    favoriteSongs.value = displayIds
+      .map((id) => songMap.get(String(id)))
       .filter((song): song is SongResult => !!song);
-
-    if (currentPage.value === 1) {
-      favoriteSongs.value = newSongs;
-    } else {
-      favoriteSongs.value = [...favoriteSongs.value, ...newSongs];
-    }
-
-    noMore.value = favoriteSongs.value.length >= favoriteList.value.length;
+    noMore.value = true;
   } catch (error) {
     console.error('获取收藏歌曲失败:', error);
   } finally {
     loading.value = false;
   }
 };
+
+// 切换升/降序：按新方向重新拉取
+const toggleSort = (descending: boolean) => {
+  if (isDescending.value === descending) return;
+  isDescending.value = descending;
+  favoriteSongs.value = [];
+  noMore.value = false;
+  getFavoriteSongs();
+};
+
+/**
+ * 拖拽排序：把展示顺序的变化按“规范顺序”回写到 favoriteList（保持升/降序语义）
+ * 展示索引 d 对应规范索引 c = isDescending ? (len-1-d) : d
+ */
+function handleFavoriteReorder(from: number, to: number): void {
+  const len = favoriteSongs.value.length;
+  if (len === 0) return;
+  const cFrom = isDescending.value ? len - 1 - from : from;
+  const cTo = isDescending.value ? len - 1 - to : to;
+  playerStore.reorderFavorite(cFrom, cTo);
+}
+
+// 拖拽排序（桌面鼠标拖拽 / 移动端长按拖动）；仅在整列已加载完成时启用
+useSongListDrag(favoriteListRef, {
+  active: computed(
+    () =>
+      !props.isComponent &&
+      favoriteList.value.length > 0 &&
+      favoriteSongs.value.length === favoriteList.value.length
+  ),
+  filter: '.song-item-operating',
+  onReorder: handleFavoriteReorder
+});
 
 const hasLoaded = ref(false);
 
@@ -343,9 +316,7 @@ watch(
   favoriteList,
   async () => {
     hasLoaded.value = false;
-    currentPage.value = 1;
     noMore.value = false;
-    resetRenderLimit();
     await getFavoriteSongs();
     hasLoaded.value = true;
   },
@@ -390,5 +361,11 @@ const handleSelectAll = (checked: boolean) => {
 </script>
 
 <style lang="scss" scoped>
-/* Scoped styles kept minimal as we use Tailwind classes */
+.favorite-list-section :deep(.song-item) {
+  cursor: grab;
+}
+
+.favorite-list-section :deep(.song-item:active) {
+  cursor: grabbing;
+}
 </style>

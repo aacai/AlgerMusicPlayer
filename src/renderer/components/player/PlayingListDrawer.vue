@@ -39,20 +39,18 @@
         <i class="iconfont ri-music-2-line"></i>
         <p>{{ t('player.playList.empty') }}</p>
       </div>
-      <n-virtual-list v-else ref="playListRef" :item-size="62" item-resizable :items="playList">
-        <template #default="{ item }">
-          <div class="music-play-list-content">
-            <div class="flex items-center justify-between">
-              <song-item :key="item.id" class="flex-1" :item="item" mini></song-item>
-              <div class="delete-btn" @click.stop="handleDeleteSong(item)">
-                <i
-                  class="iconfont ri-delete-bin-line text-gray-400 hover:text-red-500 transition-colors"
-                ></i>
-              </div>
+      <div v-else ref="listContainerRef" class="playlist-list">
+        <div v-for="item in playList" :key="item.id" class="music-play-list-content">
+          <div class="flex items-center justify-between">
+            <song-item class="flex-1" :item="item" mini></song-item>
+            <div class="delete-btn" @click.stop="handleDeleteSong(item)">
+              <i
+                class="iconfont ri-delete-bin-line text-gray-400 hover:text-red-500 transition-colors"
+              ></i>
             </div>
           </div>
-        </template>
-      </n-virtual-list>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -63,6 +61,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import SongItem from '@/components/common/SongItem.vue';
+import { useSongListDrag } from '@/composables/useSongListDrag';
 import { usePlayerStore } from '@/store/modules/player';
 import type { SongResult } from '@/types/music';
 import { isMobile } from '@/utils';
@@ -110,8 +109,8 @@ watch(
 // 播放列表
 const playList = computed(() => playerStore.playList as SongResult[]);
 
-// 播放列表引用
-const playListRef = ref<any>(null);
+// 列表容器引用（用于绑定 SortableJS 拖拽 + 滚动定位）
+const listContainerRef = ref<HTMLElement | null>(null);
 
 // 关闭面板
 const closePanel = () => {
@@ -170,15 +169,20 @@ onUnmounted(() => {
 const scrollToCurrentSong = () => {
   // 延长等待时间，确保列表已渲染完成
   setTimeout(() => {
-    if (playListRef.value && playList.value.length > 0) {
+    if (listContainerRef.value && playList.value.length > 0) {
       const index = playerStore.playListIndex;
-      console.log('滚动到歌曲索引:', index);
-      playListRef.value.scrollTo({
-        top: (index > 3 ? index - 3 : 0) * 62
-      });
+      listContainerRef.value.scrollTop = (index > 3 ? index - 3 : 0) * 62;
     }
   }, 100);
 };
+
+// 拖拽排序播放队列（桌面鼠标拖拽 / 移动端长按拖动）
+useSongListDrag(listContainerRef, {
+  active: computed(() => internalVisible.value && playList.value.length > 0),
+  draggable: '.music-play-list-content',
+  filter: '.delete-btn',
+  onReorder: (from, to) => playerStore.reorderPlayList(from, to)
+});
 
 // 删除歌曲
 const handleDeleteSong = (song: SongResult) => {
@@ -239,6 +243,18 @@ const handleDeleteSong = (song: SongResult) => {
 
   &-content {
     @apply h-[calc(70vh-60px)] overflow-hidden;
+  }
+}
+
+.playlist-list {
+  @apply h-full overflow-y-auto;
+
+  .music-play-list-content {
+    @apply cursor-grab;
+
+    &:active {
+      @apply cursor-grabbing;
+    }
   }
 }
 

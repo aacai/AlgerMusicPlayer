@@ -385,7 +385,7 @@
                 {{ t('localMusic.playlist.emptyDetail') }}
               </div>
 
-              <div v-else class="mt-2">
+              <div v-else ref="playlistListRef" class="song-list-container mt-2">
                 <template v-for="(row, index) in visibleRows" :key="`${row.entry.title}-${index}`">
                   <song-item
                     v-if="row.track"
@@ -526,11 +526,11 @@
 
 <script setup lang="ts">
 import { createDiscreteApi } from 'naive-ui';
-import Sortable from 'sortablejs';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import SongItem from '@/components/common/SongItem.vue';
+import { useSongListDrag } from '@/composables/useSongListDrag';
 import { useLocalMusicStore } from '@/store/modules/localMusic';
 import { useLocalPlaylistStore } from '@/store/modules/localPlaylist';
 import { usePlayerStore } from '@/store/modules/player';
@@ -557,6 +557,8 @@ const tab = ref<'songs' | 'playlists'>('songs');
 const searchKeyword = ref('');
 /** 歌曲列表容器（用于绑定 SortableJS 实现拖拽排序） */
 const songListRef = ref<HTMLElement | null>(null);
+/** 歌单内曲目列表容器（拖拽排序歌单内歌曲） */
+const playlistListRef = ref<HTMLElement | null>(null);
 const sortMode = ref<'title' | 'artist' | 'added'>('title');
 /** 粘贴排序弹层 */
 const sortPasteVisible = ref(false);
@@ -744,58 +746,39 @@ function switchTab(next: 'songs' | 'playlists'): void {
 }
 
 // ==================== 拖拽排序（长按 / 鼠标拖拽） ====================
-let sortable: Sortable | null = null;
+const searchDisabled = computed(() => searchKeyword.value.trim().length > 0);
 
-/**
- * 拖拽结束时按新的展示顺序写入手动排序
- * 仅“全部歌曲”且未搜索时允许拖拽，此时 sortedEntries 即完整展示顺序
- */
-function handleDragEnd(evt: any): void {
-  const { oldIndex, newIndex } = evt;
-  if (oldIndex == null || newIndex == null || oldIndex === newIndex) return;
+/** “全部歌曲”拖拽：按新的展示顺序写入手动排序 */
+function handleSongReorder(from: number, to: number): void {
   const list = sortedEntries.value.slice();
-  if (oldIndex >= list.length || newIndex >= list.length) return;
-  const [moved] = list.splice(oldIndex, 1);
+  if (from >= list.length || to >= list.length) return;
+  const [moved] = list.splice(from, 1);
   if (!moved) return;
-  list.splice(newIndex, 0, moved);
+  list.splice(to, 0, moved);
   localMusicStore.setOrder(list.map((entry) => entry.id));
 }
 
-function initSortable(): void {
-  if (sortable || !songListRef.value) return;
-  sortable = Sortable.create(songListRef.value, {
-    animation: 150,
-    delay: 250, // 触摸需长按 250ms 才进入拖拽；鼠标无需延迟直接拖
-    delayOnTouchOnly: true, // 仅触摸启用长按，桌面鼠标拖拽不受影响
-    filter: '.song-item-operating', // 播放/收藏按钮不触发拖拽
-    preventOnFilter: false,
-    onEnd: handleDragEnd
-  });
+/** “歌单”拖拽：调整歌单内曲目顺序（持久化） */
+function handlePlaylistReorder(from: number, to: number): void {
+  const playlist = activePlaylist.value;
+  if (!playlist) return;
+  localPlaylistStore.reorderEntries(playlist.id, from, to);
 }
 
-function destroySortable(): void {
-  if (sortable) {
-    sortable.destroy();
-    sortable = null;
-  }
-}
+// “全部歌曲”列表：桌面鼠标拖拽、移动端长按拖动
+useSongListDrag(songListRef, {
+  active: computed(() => tab.value === 'songs' && filteredList.value.length > 0),
+  disabled: searchDisabled,
+  filter: '.song-item-operating',
+  onReorder: handleSongReorder
+});
 
-// 进入“全部歌曲”且列表非空时初始化拖拽；切到歌单页或清空时销毁
-watch(
-  [() => tab.value, () => filteredList.value.length],
-  ([curTab, len]: [string, number]) => {
-    if (curTab === 'songs' && len > 0) {
-      nextTick(initSortable);
-    } else {
-      destroySortable();
-    }
-  },
-  { immediate: true }
-);
-
-// 搜索时禁用拖拽，避免过滤视图与全局顺序错位
-watch(searchKeyword, (kw) => {
-  if (sortable) sortable.option('disabled', kw.trim().length > 0);
+// “歌单”列表：同样的拖拽交互，重排歌单内曲目
+useSongListDrag(playlistListRef, {
+  active: computed(() => tab.value === 'playlists' && visibleRows.value.length > 0),
+  disabled: searchDisabled,
+  filter: '.song-item-operating',
+  onReorder: handlePlaylistReorder
 });
 
 async function handleAddFolder(): Promise<void> {
@@ -933,10 +916,6 @@ onMounted(async () => {
     return;
   }
   await localMusicStore.loadFromCache();
-});
-
-onUnmounted(() => {
-  destroySortable();
 });
 </script>
 

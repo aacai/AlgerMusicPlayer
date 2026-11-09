@@ -432,6 +432,23 @@ export const usePlaylistStore = defineStore(
     };
 
     /**
+     * 手动拖拽调整播放队列顺序，并保持当前播放歌曲的索引正确
+     */
+    const reorderPlayList = (from: number, to: number): void => {
+      const list = playList.value;
+      if (from < 0 || to < 0 || from >= list.length || to >= list.length || from === to) return;
+      const currentSong = list[playListIndex.value];
+      const newList = [...list];
+      const [moved] = newList.splice(from, 1);
+      newList.splice(to, 0, moved);
+      playList.value = newList;
+      if (currentSong) {
+        const newIndex = newList.findIndex((song) => song.id === currentSong.id);
+        if (newIndex !== -1) playListIndex.value = newIndex;
+      }
+    };
+
+    /**
      * 清空播放列表
      */
     const clearPlayAll = (): void => {
@@ -754,6 +771,7 @@ export const usePlaylistStore = defineStore(
       prepareSongPlayback,
       addToNextPlay,
       removeFromPlayList,
+      reorderPlayList,
       clearPlayAll,
       togglePlayMode,
       shufflePlayList,

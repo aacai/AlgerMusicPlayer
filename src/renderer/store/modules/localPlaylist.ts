@@ -88,6 +88,19 @@ export const useLocalPlaylistStore = defineStore(
       playlists.value = playlists.value.filter((playlist) => playlist.id !== id);
     }
 
+    /** 拖拽调整歌单内曲目顺序（手动排序，持久化） */
+    function reorderEntries(playlistId: string, from: number, to: number): void {
+      const playlist = findById(playlistId);
+      if (!playlist) return;
+      const entries = playlist.entries;
+      if (from < 0 || to < 0 || from >= entries.length || to >= entries.length || from === to)
+        return;
+      const newEntries = [...entries];
+      const [moved] = newEntries.splice(from, 1);
+      newEntries.splice(to, 0, moved);
+      playlist.entries = newEntries;
+    }
+
     function renamePlaylist(id: string, name: string): void {
       const playlist = findById(id);
       const trimmed = name.trim();
@@ -111,6 +124,7 @@ export const useLocalPlaylistStore = defineStore(
       importFromText,
       removePlaylist,
       renamePlaylist,
+      reorderEntries,
       markRecent
     };
   },
