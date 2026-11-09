@@ -9,7 +9,22 @@ import * as os from 'os';
 import * as path from 'path';
 
 /** 支持的音频文件格式 */
-const SUPPORTED_AUDIO_FORMATS = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac'] as const;
+const SUPPORTED_AUDIO_FORMATS = [
+  '.mp3',
+  '.flac',
+  '.wav',
+  '.ogg',
+  '.m4a',
+  '.aac',
+  '.ape',
+  '.wma',
+  '.opus',
+  '.aiff',
+  '.aif'
+] as const;
+
+/** Melo 曲库的默认位置：~/Music/MELO */
+const DEFAULT_LIBRARY_DIR_NAME = 'MELO';
 const METADATA_PARSE_CONCURRENCY = Math.min(8, Math.max(2, os.cpus().length));
 const MAX_COVER_BYTES = 8 * 1024 * 1024;
 
@@ -76,17 +91,58 @@ function isSupportedFormat(ext: string): boolean {
 }
 
 /**
+ * 去掉文件名里的下载标签与加密后缀，如 `[mqms2]`、`.mflac0`、`.qmcflac`。
+ * @param stem 不含常规扩展名的文件名
+ */
+function cleanFileStem(stem: string): string {
+  return stem
+    .replace(/\[[^\]]*]/g, '')
+    .replace(/【[^】]*】/g, '')
+    .replace(/\.(mflac0?|mgg[01]?|qmcflac|qmcogg|m4a)$/i, '')
+    .trim();
+}
+
+/**
+ * 从文件名解析「歌手」与「歌名」。
+ * 兼容 `歌手-歌名`、`歌手 - 歌名`、`歌名 - 歌手` 的常见下载命名；
+ * 优先按带空格的横线切分，否则按第一个横线切分。
+ * @param filePath 文件路径
+ * @returns 歌手与歌名；无法切分时歌手为空
+ */
+export function parseFileNameParts(filePath: string): { artist: string; title: string } {
+  const basename = path.basename(filePath);
+  const dotIndex = basename.lastIndexOf('.');
+  const clean = cleanFileStem(dotIndex > 0 ? basename.slice(0, dotIndex) : basename);
+  if (!clean) {
+    return { artist: '', title: basename };
+  }
+
+  const spaced = [' - ', ' – ', ' — ', '－'].find((sep) => clean.includes(sep));
+  if (spaced) {
+    return {
+      artist: clean.slice(0, clean.indexOf(spaced)).trim(),
+      title: clean.slice(clean.indexOf(spaced) + spaced.length).trim()
+    };
+  }
+
+  const dash = clean.indexOf('-');
+  if (dash > 0) {
+    return {
+      artist: clean.slice(0, dash).trim(),
+      title: clean.slice(dash + 1).trim()
+    };
+  }
+
+  return { artist: '', title: clean };
+}
+
+/**
  * 从文件路径中提取歌曲标题（去除目录和扩展名）
  * @param filePath 文件路径
  * @returns 歌曲标题
  */
 function extractTitleFromFilename(filePath: string): string {
-  const basename = path.basename(filePath);
-  const dotIndex = basename.lastIndexOf('.');
-  if (dotIndex > 0) {
-    return basename.slice(0, dotIndex);
-  }
-  return basename;
+  return parseFileNameParts(filePath).title;
 }
 
 /**
@@ -265,11 +321,12 @@ async function parseMetadata(filePath: string): Promise<LocalMusicMeta> {
     console.error(`获取文件信息失败: ${filePath}`, error);
   }
 
-  // 构建 fallback 默认值
+  // 构建 fallback 默认值：文件名按「歌手-歌名」解析，标签缺失时用得上
+  const parsedName = parseFileNameParts(filePath);
   const fallback: LocalMusicMeta = {
     filePath,
-    title: extractTitleFromFilename(filePath),
-    artist: '未知艺术家',
+    title: parsedName.title || extractTitleFromFilename(filePath),
+    artist: parsedName.artist || '未知艺术家',
     album: '未知专辑',
     duration: 0,
     coverPath: null,
@@ -284,8 +341,8 @@ async function parseMetadata(filePath: string): Promise<LocalMusicMeta> {
 
     return {
       filePath,
-      title: common.title || fallback.title,
-      artist: common.artist || fallback.artist,
+      title: common.title?.trim() || fallback.title,
+      artist: common.artist?.trim() || fallback.artist,
       album: common.album || fallback.album,
       duration: format.duration ? Math.round(format.duration * 1000) : 0,
       coverPath: await extractCoverToFile(common.picture?.[0], filePath),
@@ -351,6 +408,16 @@ export function initializeLocalMusicScanner(): void {
     } catch (error: any) {
       console.error('扫描本地音乐(含文件信息)失败:', error);
       return { error: error.message || '扫描失败' };
+    }
+  });
+
+  // 默认曲库：~/Music/MELO 存在时直接返回，让首次启动就能看到歌曲
+  ipcMain.handle('get-default-local-music-folder', async () => {
+    const dir = path.join(app.getPath('music'), DEFAULT_LIBRARY_DIR_NAME);
+    try {
+      return (await fs.promises.stat(dir)).isDirectory() ? dir : null;
+    } catch {
+      return null;
     }
   });
 

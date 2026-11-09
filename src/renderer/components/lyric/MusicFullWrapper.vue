@@ -6,11 +6,16 @@
 import { computed } from 'vue';
 
 import MusicFull from '@/components/lyric/MusicFull.vue';
+import MusicFullMelo from '@/components/lyric/MusicFullMelo.vue';
 import MusicFullMobile from '@/components/lyric/MusicFullMobile.vue';
+import { useSettingsStore } from '@/store/modules/settings';
 import { isMobile } from '@/utils';
 
-// 根据当前设备类型选择需要显示的组件
+const settingsStore = useSettingsStore();
+
+// 播放页样式：默认沿用 Alger 自带布局，选择 Melo 时整页换成 Melo 风格
 const componentToUse = computed(() => {
+  if (settingsStore.setData?.playerStyle === 'melo') return MusicFullMelo;
   return isMobile.value ? MusicFullMobile : MusicFull;
 });
 

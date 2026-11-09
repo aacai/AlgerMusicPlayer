@@ -11,5 +11,51 @@ export default {
   rescan: '다시 스캔',
   songCount: '{count}곡',
   removeFromLibrary: '라이브러리에서 제거',
-  removedFromLibrary: '라이브러리에서 제거했습니다 (파일은 삭제되지 않음)'
+  removedFromLibrary: '라이브러리에서 제거했습니다 (파일은 삭제되지 않음)',
+  tabs: {
+    songs: '모든 곡',
+    playlists: '플레이리스트'
+  },
+  sort: {
+    title: '제목순',
+    artist: '아티스트순',
+    added: '최근 추가',
+    paste: '플레이리스트로 정렬',
+    pasted: '{count}곡 붙여넣기 완료',
+    pastedName: '플레이리스트 "{name}"',
+    pasteHint: 'QQ뮤직 / 네트이이스 플레이리스트 공유 링크를 붙여넣어 로컬 음악을 정렬하세요',
+    pastePlaceholder: 'https://c6.y.qq.com/base/fcgi-bin/u?__=...',
+    apply: '불러오기 및 정렬',
+    clear: '정렬 초기화',
+    pasteEmpty: '플레이리스트 링크를 붙여넣으세요',
+    applied: '{count}곡으로 정렬됨',
+    appliedLink: '"{name}"을(를) 불러왔습니다. 로컬 음악이 플레이리스트 순으로 정렬되었습니다',
+    matched: '로컬 일치 {count}/{total}',
+    linkError: '플레이리스트 불러오기 실패'
+  },
+  playlist: {
+    heading: '내 플레이리스트',
+    import: '플레이리스트 가져오기',
+    empty: '플레이리스트가 없습니다. QQ뮤직 / 네트이이스 플레이리스트를 가져와 보세요',
+    emptyDetail: '목록에서 곡을 클릭하거나 플레이리스트 위의 재생 버튼을 사용하세요',
+    matched: '{matched}/{total}곡 로컬 재생 가능',
+    missing: '로컬에 없음',
+    playAll: '플레이리스트 재생',
+    delete: '플레이리스트 삭제',
+    deleteConfirm: '"{name}"을(를) 삭제할까요? 플레이리스트만 삭제되고 파일은 유지됩니다.',
+    importTitle: '플레이리스트 가져오기',
+    link: '플레이리스트 링크',
+    linkPlaceholder: 'QQ뮤직 / 네트이이스 플레이리스트 공유 링크 붙여넣기 (단축 링크 지원)',
+    name: '플레이리스트 이름',
+    namePlaceholder: '비워두면 원래 플레이리스트 이름 사용',
+    text: '또는 곡 목록 붙여넣기',
+    textPlaceholder: '晴天 - 周杰伦\n稻香 - 周杰伦',
+    submit: '가져오기',
+    cancel: '취소',
+    importing: '가져오는 중...',
+    imported: '"{name}"을(를) 가져왔습니다',
+    search: '플레이리스트 내 곡 검색',
+    needLinkOrText: '플레이리스트 링크 또는 곡 목록을 붙여넣으세요',
+    entryCount: '{count}곡'
+  }
 };

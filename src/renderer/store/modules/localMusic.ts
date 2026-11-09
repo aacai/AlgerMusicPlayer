@@ -7,7 +7,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
 import useIndexedDB from '@/hooks/IndexDBHook';
-import type { LocalMusicEntry } from '@/types/localMusic';
+import { LOCAL_SCAN_VERSION, type LocalMusicEntry } from '@/types/localMusic';
 import { removeStaleEntries } from '@/utils/localMusicUtils';
 
 const { message } = createDiscreteApi(['message']);
@@ -104,6 +104,27 @@ export const useLocalMusicStore = defineStore(
         return;
       }
       folderPaths.value.push(path);
+    }
+
+    /**
+     * 首次使用时自动挂上默认曲库 ~/Music/MELO，免去手动选文件夹
+     * @returns 是否新增了默认文件夹
+     */
+    async function ensureDefaultFolder(): Promise<boolean> {
+      if (folderPaths.value.length > 0) {
+        return false;
+      }
+      try {
+        const dir = await window.api.getDefaultLocalMusicFolder();
+        if (!dir) {
+          return false;
+        }
+        folderPaths.value.push(dir);
+        return true;
+      } catch (error) {
+        console.error('读取默认曲库目录失败:', error);
+        return false;
+      }
     }
 
     /**
@@ -223,7 +244,12 @@ export const useLocalMusicStore = defineStore(
           const parseTargets: string[] = [];
           for (const file of files) {
             const cached = cachedMap.get(file.path);
-            if (!cached || cached.modifiedTime !== file.modifiedTime || !('coverPath' in cached)) {
+            if (
+              !cached ||
+              cached.modifiedTime !== file.modifiedTime ||
+              !('coverPath' in cached) ||
+              cached.scanVersion !== LOCAL_SCAN_VERSION
+            ) {
               parseTargets.push(file.path);
             }
           }
@@ -235,7 +261,8 @@ export const useLocalMusicStore = defineStore(
               for (const meta of metas) {
                 const entry: LocalMusicEntry = {
                   ...meta,
-                  id: generateId(meta.filePath)
+                  id: generateId(meta.filePath),
+                  scanVersion: LOCAL_SCAN_VERSION
                 };
                 await localDB.saveData(LOCAL_MUSIC_STORE, entry);
                 cachedMap.set(entry.filePath, entry);
@@ -355,6 +382,7 @@ export const useLocalMusicStore = defineStore(
 
       // 动作
       addFolder,
+      ensureDefaultFolder,
       removeFolder,
       scanFolders,
       loadFromCache,

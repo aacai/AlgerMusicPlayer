@@ -29,6 +29,7 @@ import { isElectron, isLyricWindow } from '@/utils';
 import { checkLoginStatus } from '@/utils/auth';
 
 import { initAudioListeners, initMusicHook } from './hooks/MusicHook';
+import { setupZoomShortcuts } from './hooks/useZoom';
 import { audioService } from './services/audioService';
 import { isMobile } from './utils';
 import { useAppShortcuts } from './utils/appShortcuts';
@@ -125,6 +126,7 @@ if (isElectron) {
 
 // 使用应用内快捷键
 useAppShortcuts();
+setupZoomShortcuts();
 
 onMounted(async () => {
   playerStore.setIsPlay(false);
@@ -183,10 +185,25 @@ onMounted(async () => {
   if (isElectron) {
     const { useLocalMusicStore } = await import('@/store/modules/localMusic');
     const localMusicStore = useLocalMusicStore();
+    await localMusicStore.ensureDefaultFolder();
     await localMusicStore.loadFromCache();
     localMusicStore.scanFolders().catch((error) => {
       console.error('[App] 启动时自动扫描本地音乐失败:', error);
     });
+
+    // 「继续聆听」：任何页面播放本地歌曲都记入最近播放
+    const { useLocalPlaylistStore } = await import('@/store/modules/localPlaylist');
+    const localPlaylistStore = useLocalPlaylistStore();
+    watch(
+      () => playerStore.playMusic?.id,
+      (id) => {
+        if (id === undefined || id === null) return;
+        const key = String(id);
+        if (localMusicStore.musicList.some((entry) => entry.id === key)) {
+          localPlaylistStore.markRecent(key);
+        }
+      }
+    );
   }
 });
 </script>

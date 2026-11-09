@@ -81,6 +81,12 @@ export default {
       dolby: '돌비 애트모스',
       jymaster: '초고화질 마스터'
     },
+    playerStyle: '전체 화면 플레이어 스타일',
+    playerStyleDesc: '전체 화면 플레이어 레이아웃을 전환합니다. 즉시 적용됩니다',
+    playerStyleOptions: {
+      alger: 'Alger 기본',
+      melo: 'Melo 스타일'
+    },
     musicSources: '음원 설정',
     musicSourcesDesc: '음악 해석에 사용할 음원 플랫폼 선택',
     musicSourcesWarning: '최소 하나의 음원 플랫폼을 선택해야 합니다',

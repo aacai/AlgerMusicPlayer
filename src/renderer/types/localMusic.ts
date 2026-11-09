@@ -2,9 +2,24 @@
 
 /**
  * 支持的音频文件格式
- * 包含 mp3、flac、wav、ogg、m4a、aac 六种常见格式
+ * 包含 mp3、flac、wav、ogg、m4a、aac 以及 ape/wma/opus/aiff
  */
-export const SUPPORTED_AUDIO_FORMATS = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac'] as const;
+export const SUPPORTED_AUDIO_FORMATS = [
+  '.mp3',
+  '.flac',
+  '.wav',
+  '.ogg',
+  '.m4a',
+  '.aac',
+  '.ape',
+  '.wma',
+  '.opus',
+  '.aiff',
+  '.aif'
+] as const;
+
+/** 元数据解析规则版本；升级文件名解析后自增，让旧缓存自动重解析 */
+export const LOCAL_SCAN_VERSION = 2;
 
 /** 支持的音频格式类型 */
 export type SupportedAudioFormat = (typeof SUPPORTED_AUDIO_FORMATS)[number];
@@ -41,4 +56,6 @@ export type LocalMusicMeta = {
 export type LocalMusicEntry = LocalMusicMeta & {
   /** 使用 filePath 的 hash 作为唯一 ID */
   id: string;
+  /** 解析规则版本，低于当前版本时重新解析 */
+  scanVersion?: number;
 };

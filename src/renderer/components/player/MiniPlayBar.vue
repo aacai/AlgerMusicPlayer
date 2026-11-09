@@ -7,7 +7,7 @@
       <!-- 专辑封面 -->
       <div class="album-cover" @click="setMusicFull">
         <n-image
-          :src="getImgUrl(playMusic?.picUrl, '100y100')"
+          :src="barCover"
           fallback-src="/placeholder.png"
           class="cover-img"
           preview-disabled
@@ -137,9 +137,12 @@ import { audioService } from '@/services/audioService';
 import { usePlayerStore, useSettingsStore } from '@/store';
 import type { SongResult } from '@/types/music';
 import { getImgUrl } from '@/utils';
+import { useCachedImage } from '@/utils/imageCache';
 
 const playerStore = usePlayerStore();
 const settingsStore = useSettingsStore();
+
+const barCover = useCachedImage(() => getImgUrl(playMusic.value?.picUrl, '100y100'));
 const { navigateToArtist } = useArtist();
 
 // 播放控制

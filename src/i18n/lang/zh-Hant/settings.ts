@@ -78,6 +78,12 @@ export default {
       dolby: '杜比全景聲',
       jymaster: '超清母帶'
     },
+    playerStyle: '播放頁樣式',
+    playerStyleDesc: '切換點開歌曲時使用的全螢幕播放頁樣式，即時生效',
+    playerStyleOptions: {
+      alger: 'Alger 預設',
+      melo: 'Melo 風格'
+    },
     musicSources: '音源設定',
     musicSourcesDesc: '選擇音樂解析使用的音源平台',
     musicSourcesWarning: '至少需要選擇一個音源平台',

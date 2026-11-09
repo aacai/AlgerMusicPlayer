@@ -1,7 +1,6 @@
 import { cloneDeep } from 'lodash';
 import { computed, type ComputedRef, nextTick, onUnmounted, ref, watch } from 'vue';
 
-import useIndexedDB from '@/hooks/IndexDBHook';
 import { audioService } from '@/services/audioService';
 import { playbackRequestManager } from '@/services/playbackRequestManager';
 import type { usePlayerStore } from '@/store';
@@ -61,18 +60,6 @@ let lastIndex = -1;
 
 // 缓存平台信息，避免每次歌词变化时同步 IPC 调用
 const cachedPlatform = isElectron ? window.electron.ipcRenderer.sendSync('get-platform') : 'web';
-
-export const musicDB = await useIndexedDB(
-  'musicDB',
-  [
-    { name: 'music', keyPath: 'id' },
-    { name: 'music_lyric', keyPath: 'id' },
-    { name: 'api_cache', keyPath: 'id' },
-    { name: 'music_url_cache', keyPath: 'id' },
-    { name: 'music_failed_cache', keyPath: 'id' }
-  ],
-  3
-);
 
 // 键盘事件处理器（提取为命名函数，防止重复注册）
 const handleKeyUp = (e: KeyboardEvent) => {
@@ -166,6 +153,93 @@ const parseLyricsString = async (
 
 let lyricGeneration = 0;
 
+// 部分接口 / 旧持久化状态会写入「暂无歌词」占位行，需要当作无歌词继续回退
+const isPlaceholderLyric = (lines?: { text?: string }[]) =>
+  !!lines?.length &&
+  lines.every((line) => !line.text?.trim() || /暂无歌词|没有歌词|无歌词/.test(line.text));
+
+const loadFallbackLyrics = async (
+  songId: string | number,
+  isCurrent: () => boolean
+): Promise<{ lrcArray: ILyricText[]; lrcTimeArray: number[] }> => {
+  let result: { lrcArray: ILyricText[]; lrcTimeArray: number[] } = {
+    lrcArray: [],
+    lrcTimeArray: []
+  };
+  const url = playMusic.value?.playMusicUrl;
+  try {
+    if (isElectron && url?.startsWith('local:///')) {
+      let filePath = decodeURIComponent(url.replace('local:///', ''));
+      if (/^\/[a-zA-Z]:\//.test(filePath)) filePath = filePath.slice(1);
+      const embeddedLyrics = await window.api.getEmbeddedLyrics(filePath);
+      if (!isCurrent()) return result;
+      if (embeddedLyrics) {
+        result = await parseLyricsString(embeddedLyrics);
+      }
+    }
+    if (!isCurrent()) return result;
+    if (!result.lrcArray.length) {
+      // 本地歌曲的 id 走在线歌词接口必然 404/被取消，这里必须单独兜住异常，
+      // 否则直接跳到外层 catch，后面的 QQ 歌词回退永远不会执行
+      try {
+        const { loadLrc } = await import('@/hooks/usePlayerHooks');
+        if (!isCurrent()) return result;
+        result = await loadLrc(songId);
+        // 在线接口对本地歌曲 id 常回一行「暂无歌词」，同样要继续 QQ 回退
+        if (isPlaceholderLyric(result.lrcArray)) {
+          result = { lrcArray: [], lrcTimeArray: [] };
+        }
+      } catch (error) {
+        console.warn('在线歌词加载失败，尝试 QQ 音乐歌词:', error);
+      }
+    }
+    if (!isCurrent()) return result;
+    // 网易云和本地文件都没有歌词时，走 Melo 的 QQ 音乐歌词管线
+    if (!result.lrcArray.length) {
+      const artistText = (artistList.value || [])
+        .map((artist) => artist?.name)
+        .filter(Boolean)
+        .join(' ');
+      const { loadQqLyric } = await import('@/hooks/usePlayerHooks');
+      if (!isCurrent()) return result;
+      const fallback = await loadQqLyric(playMusic.value?.name || '', artistText);
+      if (fallback) {
+        // 本地文件常没有内嵌封面，顺便把 QQ 搜到的专辑图同步到当前歌曲
+        if (fallback.cover && playMusic.value && !playMusic.value.picUrl) {
+          playMusic.value.picUrl = fallback.cover;
+          if (playMusic.value.al) playMusic.value.al.picUrl = fallback.cover;
+        }
+        result = fallback;
+      }
+    }
+  } catch (error) {
+    console.error('加载歌词失败:', error);
+  }
+  return result;
+};
+
+/** 本地文件常没有内嵌封面：不管歌词走哪条路径，都补一次 QQ 专辑图 */
+const ensureQqCover = async (isCurrent: () => boolean): Promise<void> => {
+  const song = playMusic.value;
+  if (!isElectron || !song || !song.playMusicUrl?.startsWith('local:///') || song.picUrl) return;
+  try {
+    const artistText = (artistList.value || [])
+      .map((artist) => artist?.name)
+      .filter(Boolean)
+      .join(' ');
+    const { loadQqLyric } = await import('@/hooks/usePlayerHooks');
+    if (!isCurrent()) return;
+    const fallback = await loadQqLyric(song.name || '', artistText);
+    if (!isCurrent()) return;
+    if (fallback?.cover && playMusic.value && !playMusic.value.picUrl) {
+      playMusic.value.picUrl = fallback.cover;
+      if (playMusic.value.al) playMusic.value.al.picUrl = fallback.cover;
+    }
+  } catch (error) {
+    console.warn('QQ 封面回退失败:', error);
+  }
+};
+
 const ensureLyricsLoaded = async (force = false) => {
   const songId = playMusic.value?.id;
   if (!force && songId && lrcArray.value.length > 0) return;
@@ -197,31 +271,19 @@ const ensureLyricsLoaded = async (force = false) => {
       console.error('翻译歌词失败，使用原始歌词：', e);
     }
   } else {
-    const url = playMusic.value.playMusicUrl;
-    try {
-      if (isElectron && url?.startsWith('local:///')) {
-        let filePath = decodeURIComponent(url.replace('local:///', ''));
-        if (/^\/[a-zA-Z]:\//.test(filePath)) filePath = filePath.slice(1);
-        const embeddedLyrics = await window.api.getEmbeddedLyrics(filePath);
-        if (!isCurrent()) return;
-        if (embeddedLyrics) {
-          result = await parseLyricsString(embeddedLyrics);
-        }
-      }
-      if (!isCurrent()) return;
-      if (!result.lrcArray.length) {
-        const { loadLrc } = await import('@/hooks/usePlayerHooks');
-        if (!isCurrent()) return;
-        result = await loadLrc(songId);
-      }
-    } catch (error) {
-      console.error('加载歌词失败:', error);
-    }
+    result = await loadFallbackLyrics(songId, isCurrent);
+  }
+  if (!isCurrent()) return;
+  // 持久化下来的「暂无歌词」占位不能再挡住在线 / QQ 回退
+  if (result.lrcArray.length > 0 && isPlaceholderLyric(result.lrcArray)) {
+    result = await loadFallbackLyrics(songId, isCurrent);
   }
   if (!isCurrent()) return;
   lrcArray.value = result.lrcArray;
   lrcTimeArray.value = result.lrcTimeArray;
   nowIndex.value = getLrcIndex(nowTime.value);
+  // 歌词可能直接来自内嵌/缓存，封面仍需单独补齐（Melo 页背景也依赖它）
+  void ensureQqCover(isCurrent);
   if (isElectron && isLyricWindowOpen.value) {
     sendLyricToWin();
   }
@@ -655,13 +717,19 @@ export const useLyricProgress = () => {
 };
 
 // 设置当前播放时间
-export const setAudioTime = (index: number): void => {
-  const currentSound = audioService.getCurrentSound();
-  if (!currentSound) return;
+export const setAudioTime = async (index: number): Promise<void> => {
   const time = lrcTimeArray.value[index];
   if (!Number.isFinite(time)) return;
-  audioService.seek(time - correctionTime.value);
-  void play();
+  // 暂停状态下点了歌词要先恢复播放：恢复流程会写回上次进度，
+  // 若先 seek 会被覆盖，所以必须等恢复完成后再定位。
+  const store = getPlayerStore();
+  if (!store.isPlay) {
+    await store.setPlayMusic(true);
+  }
+  if (!audioService.getCurrentSound()) return;
+  const target = Math.max(0, time - correctionTime.value);
+  audioService.seek(target);
+  nowTime.value = target;
 };
 
 // 获取当前播放的歌词

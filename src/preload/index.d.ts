@@ -51,6 +51,59 @@ interface API {
   parseLocalMusicMetadata: (
     filePaths: string[]
   ) => Promise<import('../renderer/types/localMusic').LocalMusicMeta[]>;
+  /** 默认曲库目录（~/Music/MELO），不存在时返回 null */
+  getDefaultLocalMusicFolder: () => Promise<string | null>;
+  /** 导入 QQ 音乐 / 网易云歌单链接 */
+  importLocalPlaylist: (link: string) => Promise<
+    | {
+        ok: true;
+        playlist: { id: string; name: string; entries: { title: string; artist: string }[] };
+      }
+    | { ok: false; error: string }
+  >;
+  /** QQ 音乐歌词回退：按歌名 + 歌手搜索，返回带时间轴的行 */
+  getQqLyric: (
+    title: string,
+    artist: string
+  ) => Promise<
+    | {
+        ok: true;
+        lines: { time: number; text: string; trans: string }[];
+        title: string;
+        artist: string;
+        mid: string;
+        /** QQ 专辑封面 URL，取不到时为空串 */
+        cover: string;
+      }
+    | { ok: false; error: string }
+  >;
+  /** 歌曲评论：provider=qq 或 netease；本地歌曲按歌名+歌手现搜 */
+  getComments: (
+    provider: 'qq' | 'netease',
+    name: string,
+    artist: string,
+    page?: number,
+    neteaseId?: number
+  ) => Promise<
+    | {
+        ok: true;
+        provider: 'qq' | 'netease';
+        total: number;
+        hot: import('../shared/comments').CommentItem[];
+        items: import('../shared/comments').CommentItem[];
+        songId?: number;
+      }
+    | { ok: false; error: string }
+  >;
+  /** 网易云楼中楼：QQ 的回复随评论列表一起返回 */
+  getCommentReplies: (
+    provider: 'qq' | 'netease',
+    commentId: string,
+    songId: number,
+    offset?: number
+  ) => Promise<import('../shared/comments').CommentRepliesResult>;
+  /** 图片本地 LRU 缓存：命中返回 local:// 地址，失败时渲染进程回退远程地址 */
+  cacheImage: (url: string) => Promise<import('../shared/imageCache').CachedImageResult>;
   // Download manager
   downloadAdd: (task: any) => Promise<string>;
   downloadAddBatch: (tasks: any) => Promise<{ batchId: string; taskIds: string[] }>;

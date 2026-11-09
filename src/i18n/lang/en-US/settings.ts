@@ -81,6 +81,12 @@ export default {
       dolby: 'Dolby Atmos',
       jymaster: 'Master'
     },
+    playerStyle: 'Full Player Style',
+    playerStyleDesc: 'Choose the full-screen player layout; takes effect immediately',
+    playerStyleOptions: {
+      alger: 'Alger default',
+      melo: 'Melo style'
+    },
     musicSources: 'Music Sources',
     musicSourcesDesc: 'Select music sources for song resolution',
     musicSourcesWarning: 'At least one music source must be selected',

@@ -81,6 +81,12 @@ export default {
       dolby: 'Dolby Atmos',
       jymaster: '超高解像度マスター'
     },
+    playerStyle: '全画面プレイヤースタイル',
+    playerStyleDesc: 'フルスクリーンプレイヤーのレイアウトを切り替えます（即時反映）',
+    playerStyleOptions: {
+      alger: 'Alger 標準',
+      melo: 'Melo スタイル'
+    },
     musicSources: '音源設定',
     musicSourcesDesc: '音楽解析に使用する音源プラットフォームを選択',
     musicSourcesWarning: '少なくとも1つの音源プラットフォームを選択する必要があります',

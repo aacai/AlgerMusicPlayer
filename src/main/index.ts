@@ -54,16 +54,20 @@ import type { Language } from '../i18n/main';
 import i18n from '../i18n/main';
 import { loadLyricWindow } from './lyric';
 import { initializeCacheManager } from './modules/cache';
+import { initializeComments } from './modules/comments';
 import { initializeConfig } from './modules/config';
 import { initializeDownloadManager, setDownloadManagerWindow } from './modules/downloadManager';
 import { initializeFileManager } from './modules/fileManager';
 import { initializeFonts } from './modules/fonts';
+import { initializeImageCache } from './modules/imageCache';
 import { initializeLocalMusicScanner } from './modules/localMusicScanner';
 import { initializeLoginWindow } from './modules/loginWindow';
 import { initLxMusicHttp } from './modules/lxMusicHttp';
 import { initializeMpris, updateMprisCurrentSong, updateMprisPlayState } from './modules/mpris';
 import { initializeOtherApi } from './modules/otherApi';
+import { initializePlaylistImport } from './modules/playlistImport';
 import { initPluginMediaProxy } from './modules/pluginMediaProxy';
+import { initializeQqLyric } from './modules/qqLyric';
 import { initializeRemoteControl } from './modules/remoteControl';
 import { initializeShortcuts } from './modules/shortcuts';
 import { initializeTray, updateCurrentSong, updatePlayState, updateTrayMenu } from './modules/tray';
@@ -109,6 +113,14 @@ function initialize(configStore: any) {
   initializeLoginWindow();
   // 初始化本地音乐扫描模块
   initializeLocalMusicScanner();
+  // QQ 音乐歌词回退（本地歌曲 / 网易云无歌词时）
+  initializeQqLyric();
+  // 本地歌单：QQ 音乐/网易云歌单链接导入
+  initializePlaylistImport();
+  // 歌曲评论：QQ 音乐 / 网易云
+  initializeComments();
+  // 歌曲封面等网络图片的本地 LRU 缓存
+  initializeImageCache();
 
   // 创建主窗口
   mainWindow = createMainWindow(icon);

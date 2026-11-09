@@ -11,5 +11,51 @@ export default {
   rescan: '重新掃描',
   songCount: '{count} 首歌曲',
   removeFromLibrary: '從本機清單移除',
-  removedFromLibrary: '已從本機清單移除（不刪除檔案）'
+  removedFromLibrary: '已從本機清單移除（不刪除檔案）',
+  tabs: {
+    songs: '全部歌曲',
+    playlists: '歌單'
+  },
+  sort: {
+    title: '按標題',
+    artist: '按歌手',
+    added: '最近添加',
+    paste: '按歌單排序',
+    pasted: '已貼上 {count} 首',
+    pastedName: '歌單「{name}」',
+    pasteHint: '貼上 QQ 音樂 / 網易雲歌單分享連結，讀取後按歌單順序排列本地音樂',
+    pastePlaceholder: 'https://c6.y.qq.com/base/fcgi-bin/u?__=...',
+    apply: '讀取並排序',
+    clear: '清除排序',
+    pasteEmpty: '請貼上歌單連結',
+    applied: '已按 {count} 首歌排序',
+    appliedLink: '已讀取「{name}」，本地音樂已按歌單排序',
+    matched: '本地匹配 {count}/{total} 首',
+    linkError: '讀取歌單失敗'
+  },
+  playlist: {
+    heading: '我的歌單',
+    import: '匯入歌單',
+    empty: '還沒有歌單，匯入一個 QQ 音樂 / 網易雲歌單試試',
+    emptyDetail: '在列表裡點一首歌，或用歌單上方的播放按鈕',
+    matched: '{matched}/{total} 首本地可播',
+    missing: '本地沒有',
+    playAll: '播放歌單',
+    delete: '刪除歌單',
+    deleteConfirm: '確定刪除「{name}」？只刪除歌單，不刪本地檔案。',
+    importTitle: '匯入歌單',
+    link: '歌單連結',
+    linkPlaceholder: '貼上 QQ 音樂 / 網易雲歌單分享連結（支援短連結）',
+    name: '歌單名稱',
+    namePlaceholder: '留空則沿用歌單原名',
+    text: '或貼上歌曲列表',
+    textPlaceholder: '晴天 - 周杰倫\n稻香 - 周杰倫',
+    submit: '匯入',
+    cancel: '取消',
+    importing: '正在匯入…',
+    imported: '已匯入「{name}」',
+    search: '搜尋歌單裡的歌曲',
+    needLinkOrText: '請貼上歌單連結，或貼上歌曲列表',
+    entryCount: '{count} 首'
+  }
 };

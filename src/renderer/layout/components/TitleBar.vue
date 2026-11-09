@@ -1,5 +1,9 @@
 <template>
-  <header id="title-bar" :class="{ 'title-bar--mac': isMac }" @dblclick="handleTitleBarDblClick">
+  <header
+    id="title-bar"
+    :class="{ 'title-bar--mac': isMac, 'title-bar--melo-full': isMeloFull }"
+    @dblclick="handleTitleBarDblClick"
+  >
     <div class="title-bar__leading">
       <!-- macOS 交通灯控制按钮：关闭、最小化、最大化 -->
       <div v-if="isElectron && isMac" class="window-controls window-controls--mac">
@@ -65,6 +69,16 @@
       </div>
 
       <!-- 应用标题：Mac 靠左侧紧随控制按钮，其他系统靠左 -->
+      <button
+        v-if="isMeloFull"
+        class="title-bar__collapse"
+        type="button"
+        :title="t('player.playBar.collapse')"
+        :aria-label="t('player.playBar.collapse')"
+        @click.stop="exitMeloFull"
+      >
+        <i class="ri-arrow-down-s-line" aria-hidden="true" />
+      </button>
       <span class="title-bar__brand" :class="{ 'title-bar__brand--mac': isElectron && isMac }">
         Alger Music
       </span>
@@ -144,16 +158,25 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import CloseAppConfirmModal from '@/components/common/CloseAppConfirmModal.vue';
 import { useWindowControls } from '@/hooks/useWindowControls';
+import { usePlayerStore } from '@/store/modules/player';
+import { useSettingsStore } from '@/store/modules/settings';
 import { isElectron } from '@/utils';
 
 type DesktopPlatform = 'darwin' | 'win32' | 'linux' | 'web';
 
 const { t } = useI18n();
+const playerStore = usePlayerStore();
+const settingsStore = useSettingsStore();
+
+const isMeloFull = computed(
+  () => playerStore.musicFull && settingsStore.setData?.playerStyle === 'melo'
+);
+const exitMeloFull = () => playerStore.setMusicFull(false);
 
 const getPlatform = (): DesktopPlatform => {
   if (!isElectron) {
@@ -257,6 +280,26 @@ onUnmounted(() => {
 
 .title-bar__brand--mac {
   margin-left: 14px;
+}
+
+.title-bar__collapse {
+  @apply flex items-center justify-center;
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+  border: none;
+  border-radius: 9px;
+  font-size: 20px;
+  line-height: 1;
+  color: #191a20;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 0.18s ease;
+}
+
+.title-bar__collapse:hover {
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .title-bar__download {
@@ -370,5 +413,23 @@ onUnmounted(() => {
 
 .title-bar--mac .title-bar__trailing {
   min-width: 0;
+}
+
+/* Melo 全屏页标题栏跟随页面明暗：浅色底用深字，深色底用浅字 */
+.title-bar--melo-full .title-bar__brand {
+  color: #191a20;
+}
+
+.dark .title-bar--melo-full .title-bar__brand {
+  color: #f0f1f6;
+}
+
+.dark .title-bar__collapse {
+  color: #f0f1f6;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dark .title-bar__collapse:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 </style>

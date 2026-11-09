@@ -22,33 +22,57 @@ export function isSupportedAudioFormat(filePath: string): boolean {
 }
 
 /**
+ * 从文件名解析「歌手」与「歌名」，规则与主进程扫描保持一致：
+ * 去掉 [mqms] 标签和加密后缀，优先按带空格的横线切分，否则按第一个横线切分
+ * @param filePath 文件路径
+ * @returns 歌手与歌名；无法切分时歌手为空
+ */
+export function parseFileNameParts(filePath: string): { artist: string; title: string } {
+  const filename = filePath.split(/[\\/]/).pop() || filePath;
+  const dotIndex = filename.lastIndexOf('.');
+  const clean = (dotIndex > 0 ? filename.slice(0, dotIndex) : filename)
+    .replace(/\[[^\]]*]/g, '')
+    .replace(/【[^】]*】/g, '')
+    .replace(/\.(mflac0?|mgg[01]?|qmcflac|qmcogg|m4a)$/i, '')
+    .trim();
+  if (!clean) {
+    return { artist: '', title: filename };
+  }
+  const spaced = [' - ', ' – ', ' — ', '－'].find((sep) => clean.includes(sep));
+  if (spaced) {
+    return {
+      artist: clean.slice(0, clean.indexOf(spaced)).trim(),
+      title: clean.slice(clean.indexOf(spaced) + spaced.length).trim()
+    };
+  }
+  const dash = clean.indexOf('-');
+  if (dash > 0) {
+    return { artist: clean.slice(0, dash).trim(), title: clean.slice(dash + 1).trim() };
+  }
+  return { artist: '', title: clean };
+}
+
+/**
  * 从文件路径中提取歌曲标题（去除目录和扩展名）
  * @param filePath 文件路径
  * @returns 歌曲标题
  */
 export function extractTitleFromFilename(filePath: string): string {
-  // 兼容 Windows 和 Unix 路径分隔符
-  const separator = filePath.includes('\\') ? '\\' : '/';
-  const filename = filePath.split(separator).pop() || filePath;
-  // 去除扩展名
-  const dotIndex = filename.lastIndexOf('.');
-  if (dotIndex > 0) {
-    return filename.slice(0, dotIndex);
-  }
-  return filename;
+  return parseFileNameParts(filePath).title;
 }
 
 /**
  * 构建缺失元数据时的 fallback 元数据对象
- * 使用文件名作为标题，"未知艺术家"和"未知专辑"作为默认值
+ * 文件名按「歌手-歌名」解析，"未知专辑"作为默认值
  * @param filePath 文件路径
  * @returns 默认的 LocalMusicMeta 对象
  */
 export function buildFallbackMeta(filePath: string): LocalMusicMeta {
+  const parsed = parseFileNameParts(filePath);
   return {
     filePath,
-    title: extractTitleFromFilename(filePath),
-    artist: '未知艺术家',
+    title: parsed.title || extractTitleFromFilename(filePath),
+    artist: parsed.artist || '未知艺术家',
     album: '未知专辑',
     duration: 0,
     coverPath: null,
@@ -214,7 +238,8 @@ export function filterByKeyword(list: LocalMusicEntry[], keyword: string): Local
   return list.filter((entry) => {
     return (
       entry.title.toLowerCase().includes(lowerKeyword) ||
-      entry.artist.toLowerCase().includes(lowerKeyword)
+      entry.artist.toLowerCase().includes(lowerKeyword) ||
+      entry.filePath.toLowerCase().includes(lowerKeyword)
     );
   });
 }

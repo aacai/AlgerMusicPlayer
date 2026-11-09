@@ -3,8 +3,9 @@
     <!-- menu -->
     <div class="app-menu" :class="{ 'app-menu-expanded': settingsStore.setData.isMenuExpanded }">
       <div class="app-menu-header">
-        <div class="app-menu-logo" @click="toggleMenu">
-          <img :src="icon" class="w-9 h-9" alt="logo" />
+        <div class="app-menu-logo" @click="handleLogoClick">
+          <n-avatar v-if="userAvatar" circle :size="36" :src="userAvatar" class="cursor-pointer" />
+          <img v-else :src="icon" class="w-9 h-9" alt="logo" />
         </div>
       </div>
       <div class="app-menu-list">
@@ -38,13 +39,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import icon from '@/assets/icon.png';
 import { useSettingsStore } from '@/store';
-import { isMobile } from '@/utils';
+import { useUserStore } from '@/store/modules/user';
+import { getImgUrl, isMobile } from '@/utils';
 
 const props = defineProps({
   size: {
@@ -66,14 +68,30 @@ const props = defineProps({
 });
 
 const route = useRoute();
+const router = useRouter();
 const path = ref(route.path);
 const settingsStore = useSettingsStore();
+const userStore = useUserStore();
 watch(
   () => route.path,
   async (newParams) => {
     path.value = newParams;
   }
 );
+
+// 登录后显示用户头像，否则显示默认 logo
+const userAvatar = computed(() => {
+  return userStore.user?.avatarUrl ? getImgUrl(userStore.user.avatarUrl) : '';
+});
+
+// 点击图标：已登录跳转个人页，未登录切换菜单展开
+const handleLogoClick = () => {
+  if (userStore.user) {
+    router.push('/user');
+  } else {
+    toggleMenu();
+  }
+};
 
 const { t } = useI18n();
 

@@ -11,5 +11,52 @@ export default {
   rescan: '再スキャン',
   songCount: '{count} 曲',
   removeFromLibrary: 'ライブラリから削除',
-  removedFromLibrary: 'ライブラリから削除しました（ファイルは削除されません）'
+  removedFromLibrary: 'ライブラリから削除しました（ファイルは削除されません）',
+  tabs: {
+    songs: 'すべての曲',
+    playlists: 'プレイリスト'
+  },
+  sort: {
+    title: 'タイトル順',
+    artist: 'アーティスト順',
+    added: '最近追加',
+    paste: 'プレイリストで並び替え',
+    pasted: '{count} 曲を貼り付けました',
+    pastedName: 'プレイリスト「{name}」',
+    pasteHint: 'QQ音楽 / ネットEASEのプレイリスト共有リンクを貼り付けて、ローカル音楽を並び替え',
+    pastePlaceholder: 'https://c6.y.qq.com/base/fcgi-bin/u?__=...',
+    apply: '読み込みして並び替え',
+    clear: '並び替えをクリア',
+    pasteEmpty: 'プレイリストのリンクを貼り付けてください',
+    applied: '{count} 曲で並び替えました',
+    appliedLink: '「{name}」を読み込みました。ローカル音楽をプレイリスト順に並び替えました',
+    matched: 'ローカル一致 {count}/{total}',
+    linkError: 'プレイリストの読み込みに失敗しました'
+  },
+  playlist: {
+    heading: 'マイプレイリスト',
+    import: 'プレイリストをインポート',
+    empty:
+      'プレイリストがありません。QQ音楽 / ネットEASEのプレイリストをインポートしてみてください',
+    emptyDetail: 'リスト内の曲をクリックするか、プレイリスト上部の再生ボタンを使ってください',
+    matched: '{matched}/{total} 曲がローカル再生可能',
+    missing: 'ローカルにありません',
+    playAll: 'プレイリストを再生',
+    delete: 'プレイリストを削除',
+    deleteConfirm: '「{name}」を削除しますか？プレイリストのみ削除し、ファイルは残ります。',
+    importTitle: 'プレイリストをインポート',
+    link: 'プレイリストリンク',
+    linkPlaceholder: 'QQ音楽 / ネットEASEのプレイリスト共有リンクを貼り付け（短縮リンク対応）',
+    name: 'プレイリスト名',
+    namePlaceholder: '空欄の場合は元のプレイリスト名を使用',
+    text: 'または曲リストを貼り付け',
+    textPlaceholder: '晴天 - 周杰伦\n稻香 - 周杰伦',
+    submit: 'インポート',
+    cancel: 'キャンセル',
+    importing: 'インポート中...',
+    imported: '「{name}」をインポートしました',
+    search: 'プレイリスト内の曲を検索',
+    needLinkOrText: 'プレイリストのリンク、または曲リストを貼り付けてください',
+    entryCount: '{count} 曲'
+  }
 };

@@ -11,5 +11,51 @@ export default {
   rescan: 'Rescan',
   songCount: '{count} songs',
   removeFromLibrary: 'Remove from Library',
-  removedFromLibrary: 'Removed from library (file not deleted)'
+  removedFromLibrary: 'Removed from library (file not deleted)',
+  tabs: {
+    songs: 'All Songs',
+    playlists: 'Playlists'
+  },
+  sort: {
+    title: 'By Title',
+    artist: 'By Artist',
+    added: 'Recently Added',
+    paste: 'Sort by Playlist',
+    pasted: 'Pasted {count} songs',
+    pastedName: 'Playlist "{name}"',
+    pasteHint: 'Paste a QQ Music / NetEase playlist link to reorder local music by playlist',
+    pastePlaceholder: 'https://c6.y.qq.com/base/fcgi-bin/u?__=...',
+    apply: 'Load & Sort',
+    clear: 'Clear Sort',
+    pasteEmpty: 'Please paste a playlist link',
+    applied: 'Sorted by {count} songs',
+    appliedLink: 'Loaded "{name}", local music sorted by playlist',
+    matched: 'Local match {count}/{total}',
+    linkError: 'Failed to load playlist'
+  },
+  playlist: {
+    heading: 'My Playlists',
+    import: 'Import Playlist',
+    empty: 'No playlists yet. Import a QQ Music / NetEase playlist to try.',
+    emptyDetail: 'Click a song in the list, or use the play button above the playlist',
+    matched: '{matched}/{total} playable locally',
+    missing: 'Not available locally',
+    playAll: 'Play Playlist',
+    delete: 'Delete Playlist',
+    deleteConfirm: 'Delete "{name}"? Only the playlist is removed, local files are kept.',
+    importTitle: 'Import Playlist',
+    link: 'Playlist Link',
+    linkPlaceholder: 'Paste QQ Music / NetEase playlist share link (short links supported)',
+    name: 'Playlist Name',
+    namePlaceholder: 'Leave empty to use the original playlist name',
+    text: 'Or paste a song list',
+    textPlaceholder: '晴天 - 周杰伦\n稻香 - 周杰伦',
+    submit: 'Import',
+    cancel: 'Cancel',
+    importing: 'Importing...',
+    imported: 'Imported "{name}"',
+    search: 'Search songs in playlist',
+    needLinkOrText: 'Please paste a playlist link, or a song list',
+    entryCount: '{count} songs'
+  }
 };

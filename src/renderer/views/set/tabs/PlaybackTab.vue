@@ -12,6 +12,17 @@
         />
       </setting-item>
 
+      <setting-item
+        :title="t('settings.playback.playerStyle')"
+        :description="t('settings.playback.playerStyleDesc')"
+      >
+        <s-select
+          v-model="setData.playerStyle"
+          :options="playerStyleOptions"
+          width="w-40 max-md:w-full"
+        />
+      </setting-item>
+
       <setting-item v-if="isElectron" :title="t('settings.playback.musicSources')">
         <template #description>
           <div class="flex items-center gap-2">
@@ -177,6 +188,11 @@ const qualityOptions = computed(() => [
 const singleSongPlayModeOptions = computed(() => [
   { label: t('settings.playback.singleSongPlayModeOptions.replace'), value: 'replace' },
   { label: t('settings.playback.singleSongPlayModeOptions.add'), value: 'add' }
+]);
+
+const playerStyleOptions = computed(() => [
+  { label: t('settings.playback.playerStyleOptions.alger'), value: 'alger' },
+  { label: t('settings.playback.playerStyleOptions.melo'), value: 'melo' }
 ]);
 
 const musicSources = computed({

@@ -14,7 +14,9 @@ import {
   watchSystemTheme
 } from '@/utils/theme';
 
-import { type AppUpdateState,createDefaultAppUpdateState } from '../../../shared/appUpdate';
+import { type AppUpdateState, createDefaultAppUpdateState } from '../../../shared/appUpdate';
+
+const MOBILE_MAX_WIDTH = 640;
 
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<ThemeType>(getCurrentTheme());
@@ -214,16 +216,13 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   };
 
-  // 计算移动端状态的函数
+  // 计算移动端状态的函数：只按窗口宽度判断，避免横屏平板/折叠屏被平台误判
   const calculateMobileStatus = () => {
-    const userAgentFlag = navigator.userAgent.match(
-      /(phone|pad|pod|iPhone|iPod|ios|iPad|Android|Mobile|BlackBerry|IEMobile|MQQBrowser|JUC|Fennec|wOSBrowser|BrowserNG|WebOS|Symbian|Windows Phone)/i
-    );
-    const isMobileWidth = window.innerWidth < 500;
-    const isMobileDevice = !!userAgentFlag || isMobileWidth;
     const tabletMode = setData.value?.tabletMode;
+    // outerWidth 不受页面缩放影响，避免 Cmd+ 放大后被误判成小屏
+    const windowWidth = window.outerWidth || window.innerWidth;
 
-    return isMobileDevice && !tabletMode;
+    return windowWidth < MOBILE_MAX_WIDTH && !tabletMode;
   };
 
   // 更新移动端状态和DOM类

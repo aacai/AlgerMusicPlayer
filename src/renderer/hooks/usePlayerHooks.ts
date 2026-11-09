@@ -147,6 +147,45 @@ export const useSongUrl = () => {
 };
 
 /**
+ * QQ 音乐歌词回退（Melo 那一套）：网易云/内嵌歌词都没有时按「歌名 + 歌手」取。
+ * 返回结构与其他歌词一致，时间轴统一为毫秒/秒两种单位。
+ */
+export const loadQqLyric = async (
+  title: string,
+  artist: string
+): Promise<(ILyric & { cover?: string }) | null> => {
+  if (!isElectron || !title?.trim()) {
+    return null;
+  }
+
+  try {
+    const result = await window.api.getQqLyric(title.trim(), artist?.trim() || '');
+    if (!result?.ok || result.lines.length === 0) {
+      return null;
+    }
+
+    const lrcArray: ILyricText[] = [];
+    const lrcTimeArray: number[] = [];
+    result.lines.forEach((line, index) => {
+      const next = result.lines[index + 1];
+      lrcArray.push({
+        text: line.text,
+        trText: line.trans,
+        hasWordByWord: false,
+        startTime: line.time,
+        duration: Math.max(0, (next?.time ?? line.time + 4000) - line.time)
+      });
+      lrcTimeArray.push(line.time / 1000);
+    });
+
+    return { lrcTimeArray, lrcArray, hasWordByWord: false, cover: result.cover || '' };
+  } catch (error) {
+    console.warn('[loadQqLyric] QQ 音乐歌词回退失败:', error);
+    return null;
+  }
+};
+
+/**
  * 使用新的yrcParser解析歌词（独立函数）
  */
 const parseLyrics = (lyricsString: string): { lyrics: ILyricText[]; times: number[] } => {

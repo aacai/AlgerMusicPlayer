@@ -20,6 +20,7 @@
   "fontScope": "global",
   "autoPlay": false,
   "singleSongPlayMode": "replace",
+  "playerStyle": "alger",
   "downloadPath": "",
   "language": "zh-CN",
   "alwaysShowDownloadButton": false,
