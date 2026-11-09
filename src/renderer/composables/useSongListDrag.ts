@@ -8,6 +8,8 @@ export interface SongListDragOptions {
   disabled?: Ref<boolean>;
   /** 可作为拖拽单元的子元素选择器；不传则拖拽直接子元素 */
   draggable?: string;
+  /** 仅当从此选择器元素（拖拽手柄）上按下时才开始拖拽；默认 '.drag-handle' */
+  handle?: string;
   /** 不触发拖拽的元素选择器（如删除/操作按钮） */
   filter?: string;
   /** 拖拽结束回调，传入当前展示顺序下的原索引与目标索引 */
@@ -16,8 +18,8 @@ export interface SongListDragOptions {
 
 /**
  * 在歌曲列表容器上接入 SortableJS 拖拽排序。
- * - 桌面端：鼠标直接拖拽
- * - 移动端：长按 250ms 后进入拖拽（delayOnTouchOnly）
+ * - 桌面端：从拖拽手柄（handle）按下直接拖拽
+ * - 移动端：长按手柄 250ms 后进入拖拽（delayOnTouchOnly）
  * 容器出现/消失、启用/禁用均自动处理。
  */
 export function useSongListDrag(
@@ -35,6 +37,7 @@ export function useSongListDrag(
       delay: 250, // 触摸需长按 250ms 才进入拖拽；鼠标无需延迟直接拖
       delayOnTouchOnly: true, // 仅触摸启用长按，桌面鼠标拖拽不受影响
       draggable: options.draggable,
+      handle: options.handle ?? '.drag-handle',
       filter: options.filter ?? '.song-item-operating',
       preventOnFilter: false,
       onEnd: (evt: any) => {

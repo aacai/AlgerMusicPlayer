@@ -42,7 +42,7 @@
       <div v-else ref="listContainerRef" class="playlist-list">
         <div v-for="item in playList" :key="item.id" class="music-play-list-content">
           <div class="flex items-center justify-between">
-            <song-item class="flex-1" :item="item" mini></song-item>
+            <song-item class="flex-1" :item="item" mini :drag-handle="true"></song-item>
             <div class="delete-btn" @click.stop="handleDeleteSong(item)">
               <i
                 class="iconfont ri-delete-bin-line text-gray-400 hover:text-red-500 transition-colors"
@@ -249,7 +249,7 @@ const handleDeleteSong = (song: SongResult) => {
 .playlist-list {
   @apply h-full overflow-y-auto;
 
-  .music-play-list-content {
+  .drag-handle {
     @apply cursor-grab;
 
     &:active {

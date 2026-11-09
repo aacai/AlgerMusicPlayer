@@ -288,6 +288,7 @@
                 :index="index"
                 :item="item"
                 :can-remove="true"
+                :drag-handle="true"
                 @play="handlePlaySong"
                 @remove-song="handleRemoveSong"
               />
@@ -392,6 +393,7 @@
                     :index="index"
                     :item="toSongResult(row.track)"
                     :can-remove="false"
+                    :drag-handle="true"
                     @play="handlePlaySong"
                   />
                   <div
@@ -924,11 +926,11 @@ onMounted(async () => {
   @apply bg-neutral-50/60 dark:bg-neutral-900/40;
 }
 
-.song-list-container :deep(.song-item) {
+.song-list-container :deep(.drag-handle) {
   cursor: grab;
 }
 
-.song-list-container :deep(.song-item:active) {
+.song-list-container :deep(.drag-handle:active) {
   cursor: grabbing;
 }
 

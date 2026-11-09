@@ -109,6 +109,7 @@
               :key="song.id"
               :item="song"
               :favorite="false"
+              :drag-handle="true"
               class="rounded-xl hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
               :class="[
                 index < 20 ? setAnimationClass('animate__bounceInLeft') : '',
@@ -361,11 +362,11 @@ const handleSelectAll = (checked: boolean) => {
 </script>
 
 <style lang="scss" scoped>
-.favorite-list-section :deep(.song-item) {
+.favorite-list-section :deep(.drag-handle) {
   cursor: grab;
 }
 
-.favorite-list-section :deep(.song-item:active) {
+.favorite-list-section :deep(.drag-handle:active) {
   cursor: grabbing;
 }
 </style>
