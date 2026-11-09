@@ -57,5 +57,7 @@ export default {
     search: '플레이리스트 내 곡 검색',
     needLinkOrText: '플레이리스트 링크 또는 곡 목록을 붙여넣으세요',
     entryCount: '{count}곡'
-  }
+  },
+  dragHint: '길게 누르거나 드래그하여 순서 변경',
+  dragHintManual: '수동 정렬됨. 정렬 버튼을 누르면 자동 순서로 돌아갑니다'
 };

@@ -58,5 +58,7 @@ export default {
     search: 'プレイリスト内の曲を検索',
     needLinkOrText: 'プレイリストのリンク、または曲リストを貼り付けてください',
     entryCount: '{count} 曲'
-  }
+  },
+  dragHint: '長押しまたはドラッグで曲の順序を変更',
+  dragHintManual: '手動並び替え中。並び替えボタンで自動順に戻ります'
 };

@@ -57,5 +57,7 @@ export default {
     search: '搜索歌单里的歌曲',
     needLinkOrText: '请粘贴歌单链接，或粘贴歌曲列表',
     entryCount: '{count} 首'
-  }
+  },
+  dragHint: '长按或拖拽歌曲可调整顺序',
+  dragHintManual: '已手动排序，点击排序按钮可恢复自动顺序'
 };

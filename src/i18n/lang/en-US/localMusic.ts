@@ -57,5 +57,7 @@ export default {
     search: 'Search songs in playlist',
     needLinkOrText: 'Please paste a playlist link, or a song list',
     entryCount: '{count} songs'
-  }
+  },
+  dragHint: 'Long-press or drag a song to reorder',
+  dragHintManual: 'Manually ordered; pick a sort option to reset'
 };

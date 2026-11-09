@@ -4,7 +4,7 @@
 
 import { createDiscreteApi } from 'naive-ui';
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import useIndexedDB from '@/hooks/IndexDBHook';
 import { LOCAL_SCAN_VERSION, type LocalMusicEntry } from '@/types/localMusic';
@@ -74,6 +74,33 @@ export const useLocalMusicStore = defineStore(
     const folderPaths = ref<string[]>([]);
     /** 本地音乐列表（从 IndexedDB 加载） */
     const musicList = ref<LocalMusicEntry[]>([]);
+    /**
+     * 用户手动排序后的歌曲 ID 顺序（持久化到 localStorage）
+     * 列表实际展示顺序 = orderedList（按此数组排序，未收录的新歌追加在末尾）
+     */
+    const orderIds = ref<string[]>([]);
+
+    /**
+     * 按 orderIds 排序后的本地音乐列表
+     * - orderIds 中存在的 ID 按其顺序排列在前
+     * - 不在 orderIds 中的条目（新扫描/未排序）按 musicList 原顺序追加在后
+     */
+    const orderedList = computed<LocalMusicEntry[]>(() => {
+      const order = orderIds.value;
+      const map = new Map(musicList.value.map((entry) => [entry.id, entry]));
+      const result: LocalMusicEntry[] = [];
+      for (const id of order) {
+        const entry = map.get(id);
+        if (entry) {
+          result.push(entry);
+          map.delete(id);
+        }
+      }
+      for (const entry of musicList.value) {
+        if (map.has(entry.id)) result.push(entry);
+      }
+      return result;
+    });
     /** 是否正在扫描 */
     const scanning = ref(false);
     /** 已扫描文件数（用于显示进度） */
@@ -373,10 +400,27 @@ export const useLocalMusicStore = defineStore(
       }
     }
 
+    /**
+     * 用完整的歌曲 ID 顺序覆盖手动排序（拖拽排序时调用）
+     * 传入的 ids 应为当前展示列表对应的全部 musicList ID 顺序
+     * @param ids 排序后的全部歌曲 ID 数组
+     */
+    function setOrder(ids: string[]): void {
+      if (!Array.isArray(ids)) return;
+      orderIds.value = ids;
+    }
+
+    /** 清除手动排序，恢复自动排序（标题/歌手/最近添加/粘贴歌单） */
+    function clearManualOrder(): void {
+      orderIds.value = [];
+    }
+
     return {
       // 状态
       folderPaths,
       musicList,
+      orderIds,
+      orderedList,
       scanning,
       scanProgress,
 
@@ -387,7 +431,9 @@ export const useLocalMusicStore = defineStore(
       scanFolders,
       loadFromCache,
       removeEntry,
-      clearCache
+      clearCache,
+      setOrder,
+      clearManualOrder
     };
   },
   {
@@ -396,7 +442,7 @@ export const useLocalMusicStore = defineStore(
     persist: {
       key: 'local-music-store',
       storage: localStorage,
-      pick: ['folderPaths']
+      pick: ['folderPaths', 'orderIds']
     }
   }
 );

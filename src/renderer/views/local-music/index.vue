@@ -169,6 +169,23 @@
                   </div>
                 </div>
               </n-popover>
+              <n-tooltip trigger="hover" placement="bottom">
+                <template #trigger>
+                  <i
+                    class="ri-draggable text-base cursor-help transition-colors"
+                    :class="
+                      localMusicStore.orderIds.length > 0
+                        ? 'text-primary'
+                        : 'text-neutral-300 dark:text-neutral-600'
+                    "
+                  />
+                </template>
+                {{
+                  localMusicStore.orderIds.length > 0
+                    ? t('localMusic.dragHintManual')
+                    : t('localMusic.dragHint')
+                }}
+              </n-tooltip>
             </div>
 
             <!-- 右侧：操作按钮 -->
@@ -264,7 +281,7 @@
             </div>
 
             <!-- 歌曲列表 -->
-            <div v-else-if="filteredList.length > 0" class="song-list-container">
+            <div v-else-if="filteredList.length > 0" ref="songListRef" class="song-list-container">
               <song-item
                 v-for="(item, index) in filteredSongResults"
                 :key="item.id"
@@ -509,7 +526,8 @@
 
 <script setup lang="ts">
 import { createDiscreteApi } from 'naive-ui';
-import { computed, onMounted, ref, watch } from 'vue';
+import Sortable from 'sortablejs';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import SongItem from '@/components/common/SongItem.vue';
@@ -537,6 +555,8 @@ const playerStore = usePlayerStore();
 // ==================== State ====================
 const tab = ref<'songs' | 'playlists'>('songs');
 const searchKeyword = ref('');
+/** 歌曲列表容器（用于绑定 SortableJS 实现拖拽排序） */
+const songListRef = ref<HTMLElement | null>(null);
 const sortMode = ref<'title' | 'artist' | 'added'>('title');
 /** 粘贴排序弹层 */
 const sortPasteVisible = ref(false);
@@ -593,8 +613,12 @@ const playlistSortOrder = computed(() => {
 /** 歌单里能在本地曲库匹配到的数量 */
 const matchedSortCount = computed(() => playlistSortOrder.value?.size ?? 0);
 
-/** 按当前排序模式排好的全部本地歌曲；选了歌单时歌单内曲目按歌单顺序置顶 */
+/** 按当前排序模式排好的全部本地歌曲；选了歌单时歌单内曲目按歌单顺序置顶。
+ *  若用户手动拖拽排过序（orderIds 非空），则优先使用手动顺序。 */
 const sortedEntries = computed(() => {
+  if (localMusicStore.orderIds.length > 0) {
+    return localMusicStore.orderedList;
+  }
   const list = [...localMusicStore.musicList];
   const order = playlistSortOrder.value;
   if (order) {
@@ -658,9 +682,10 @@ const playableCount = computed(() =>
 );
 
 // ==================== Methods ====================
-/** 点按标题/歌手/最近添加时退出歌单排序 */
+/** 点按标题/歌手/最近添加时退出歌单排序（同时清除手动拖拽顺序） */
 function applySortMode(key: 'title' | 'artist' | 'added'): void {
   sortMode.value = key;
+  localMusicStore.clearManualOrder();
   clearPastedSort();
 }
 
@@ -668,6 +693,8 @@ function applySortMode(key: 'title' | 'artist' | 'added'): void {
 async function applyPastedSort(): Promise<void> {
   const raw = sortPasteText.value.trim();
   sortError.value = '';
+  // 粘贴歌单排序会覆盖手动拖拽顺序
+  localMusicStore.clearManualOrder();
   if (!raw) {
     sortError.value = t('localMusic.sort.pasteEmpty');
     return;
@@ -715,6 +742,61 @@ function switchTab(next: 'songs' | 'playlists'): void {
   tab.value = next;
   searchKeyword.value = '';
 }
+
+// ==================== 拖拽排序（长按 / 鼠标拖拽） ====================
+let sortable: Sortable | null = null;
+
+/**
+ * 拖拽结束时按新的展示顺序写入手动排序
+ * 仅“全部歌曲”且未搜索时允许拖拽，此时 sortedEntries 即完整展示顺序
+ */
+function handleDragEnd(evt: any): void {
+  const { oldIndex, newIndex } = evt;
+  if (oldIndex == null || newIndex == null || oldIndex === newIndex) return;
+  const list = sortedEntries.value.slice();
+  if (oldIndex >= list.length || newIndex >= list.length) return;
+  const [moved] = list.splice(oldIndex, 1);
+  if (!moved) return;
+  list.splice(newIndex, 0, moved);
+  localMusicStore.setOrder(list.map((entry) => entry.id));
+}
+
+function initSortable(): void {
+  if (sortable || !songListRef.value) return;
+  sortable = Sortable.create(songListRef.value, {
+    animation: 150,
+    delay: 250, // 触摸需长按 250ms 才进入拖拽；鼠标无需延迟直接拖
+    delayOnTouchOnly: true, // 仅触摸启用长按，桌面鼠标拖拽不受影响
+    filter: '.song-item-operating', // 播放/收藏按钮不触发拖拽
+    preventOnFilter: false,
+    onEnd: handleDragEnd
+  });
+}
+
+function destroySortable(): void {
+  if (sortable) {
+    sortable.destroy();
+    sortable = null;
+  }
+}
+
+// 进入“全部歌曲”且列表非空时初始化拖拽；切到歌单页或清空时销毁
+watch(
+  [() => tab.value, () => filteredList.value.length],
+  ([curTab, len]: [string, number]) => {
+    if (curTab === 'songs' && len > 0) {
+      nextTick(initSortable);
+    } else {
+      destroySortable();
+    }
+  },
+  { immediate: true }
+);
+
+// 搜索时禁用拖拽，避免过滤视图与全局顺序错位
+watch(searchKeyword, (kw) => {
+  if (sortable) sortable.option('disabled', kw.trim().length > 0);
+});
 
 async function handleAddFolder(): Promise<void> {
   try {
@@ -852,11 +934,23 @@ onMounted(async () => {
   }
   await localMusicStore.loadFromCache();
 });
+
+onUnmounted(() => {
+  destroySortable();
+});
 </script>
 
 <style scoped>
 .missing-row {
   @apply bg-neutral-50/60 dark:bg-neutral-900/40;
+}
+
+.song-list-container :deep(.song-item) {
+  cursor: grab;
+}
+
+.song-list-container :deep(.song-item:active) {
+  cursor: grabbing;
 }
 
 .import-modal :deep(.n-card__content) {
