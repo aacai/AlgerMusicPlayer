@@ -21,14 +21,13 @@
 
     <!-- 图片插槽 -->
     <template #image>
-      <n-image
+      <img
         v-if="item.picUrl"
         :src="getImgUrl(item.picUrl, '100y100')"
         class="song-item-img"
-        preview-disabled
-        :img-props="{
-          crossorigin: 'anonymous'
-        }"
+        loading="lazy"
+        decoding="async"
+        crossorigin="anonymous"
         @load="onImageLoad"
       />
     </template>
@@ -85,7 +84,7 @@
 </template>
 
 <script lang="ts" setup>
-import { NCheckbox, NEllipsis, NImage } from 'naive-ui';
+import { NCheckbox, NEllipsis } from 'naive-ui';
 import { computed, ref } from 'vue';
 
 import { usePlayerStore } from '@/store';

@@ -557,6 +557,15 @@ const playerStore = usePlayerStore();
 // ==================== State ====================
 const tab = ref<'songs' | 'playlists'>('songs');
 const searchKeyword = ref('');
+/** 防抖后的搜索关键词：避免每敲一字就对整个曲库做 map/toSongResult 重渲染 */
+const debouncedKeyword = ref('');
+let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+watch(searchKeyword, (val) => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    debouncedKeyword.value = val;
+  }, 200);
+});
 /** 歌曲列表容器（用于绑定 SortableJS 实现拖拽排序） */
 const songListRef = ref<HTMLElement | null>(null);
 /** 歌单内曲目列表容器（拖拽排序歌单内歌曲） */
@@ -648,8 +657,8 @@ const sortedEntries = computed(() => {
   return list.sort((a, b) => (b.modifiedTime || 0) - (a.modifiedTime || 0));
 });
 
-/** 根据搜索关键词过滤后的本地音乐列表 */
-const filteredList = computed(() => filterByKeyword(sortedEntries.value, searchKeyword.value));
+/** 根据搜索关键词过滤后的本地音乐列表（使用防抖关键词） */
+const filteredList = computed(() => filterByKeyword(sortedEntries.value, debouncedKeyword.value));
 
 /** 将过滤后的列表转换为 SongResult[] 供 SongItem 使用 */
 const filteredSongResults = computed(() => filteredList.value.map(toSongResult));
@@ -670,7 +679,7 @@ const playlistRows = computed(() =>
 );
 
 /** 歌单列表经过搜索过滤后的展示行 */
-const visibleRows = computed(() => filterPlaylistRows(playlistRows.value, searchKeyword.value));
+const visibleRows = computed(() => filterPlaylistRows(playlistRows.value, debouncedKeyword.value));
 
 /** 歌单里本地可播放的曲目，保持歌单原顺序 */
 const playlistTracksList = computed(() => playlistTracks(playlistRows.value));

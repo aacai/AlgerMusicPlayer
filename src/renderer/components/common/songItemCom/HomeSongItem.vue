@@ -8,16 +8,14 @@
     <div
       class="cover relative h-14 w-14 md:h-16 md:w-16 flex-shrink-0 overflow-hidden rounded-lg md:rounded-xl bg-neutral-100 dark:bg-neutral-800 shadow-sm"
     >
-      <n-image
+      <img
         v-if="item.picUrl"
         :src="getImgUrl(item.picUrl, '200y200')"
         class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-        preview-disabled
-        :img-props="{
-          crossorigin: 'anonymous',
-          loading: 'lazy',
-          alt: item.name
-        }"
+        loading="lazy"
+        decoding="async"
+        crossorigin="anonymous"
+        :alt="item.name"
       />
       <div
         class="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
@@ -82,7 +80,7 @@
 </template>
 
 <script lang="ts" setup>
-import { NEllipsis, NImage } from 'naive-ui';
+import { NEllipsis } from 'naive-ui';
 
 import { useSongItem } from '@/hooks/useSongItem';
 import type { SongResult } from '@/types/music';

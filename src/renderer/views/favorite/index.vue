@@ -316,6 +316,22 @@ onMounted(async () => {
 watch(
   favoriteList,
   async () => {
+    // 若仅顺序变化（id 集合不变，例如拖拽排序），直接本地重排，避免整列重新请求接口
+    const currentIds = favoriteSongs.value.map((s) => String(s.id)).sort();
+    const nextIds = [...favoriteList.value].map(String).sort();
+    const sameSet =
+      currentIds.length === nextIds.length && currentIds.every((id, i) => id === nextIds[i]);
+    if (sameSet && favoriteSongs.value.length > 0) {
+      const order = isDescending.value
+        ? [...favoriteList.value].reverse()
+        : [...favoriteList.value];
+      const songMap = new Map(favoriteSongs.value.map((s) => [String(s.id), s]));
+      favoriteSongs.value = order
+        .map((id) => songMap.get(String(id)))
+        .filter((song): song is SongResult => !!song);
+      hasLoaded.value = true;
+      return;
+    }
     hasLoaded.value = false;
     noMore.value = false;
     await getFavoriteSongs();
