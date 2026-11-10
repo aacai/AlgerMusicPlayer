@@ -1,4 +1,4 @@
-import { cloneDeep } from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
 import { createDiscreteApi } from 'naive-ui';
 
 import i18n from '@/../i18n/renderer';

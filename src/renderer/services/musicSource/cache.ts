@@ -6,7 +6,7 @@
  * - 失败缓存：内存 Map，1 分钟；键 `${songId}:${providerKey}`，单个 provider
  *   短时间内不重试（切歌场景避免重复等待同一坏源）
  */
-import { cloneDeep } from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
 
 import { musicDB } from '@/hooks/musicDB';
 

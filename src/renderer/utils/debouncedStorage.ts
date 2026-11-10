@@ -7,7 +7,7 @@
 // pendingWrites map。这样多个 key 在防抖窗口内交替写入也不会互相吞参数
 // （lodash debounce 只用最后一次的参数触发）。
 
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 
 const pendingWrites = new Map<string, string>();
 

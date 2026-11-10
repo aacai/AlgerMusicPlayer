@@ -98,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { cloneDeep } from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
 import { useMessage } from 'naive-ui';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';

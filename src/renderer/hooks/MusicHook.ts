@@ -1,4 +1,4 @@
-import { cloneDeep } from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
 import { computed, type ComputedRef, nextTick, onUnmounted, ref, watch } from 'vue';
 
 import { audioService } from '@/services/audioService';
