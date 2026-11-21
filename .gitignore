@@ -29,6 +29,9 @@ out
 resources/android/**/*
 android/app/release
 
+# WebView 壳的本地生成资源，由 Gradle copyWebAssets 从 out/renderer 同步
+android/app/src/main/assets/www/
+
 .cursor
 .windsurf
 .agent

@@ -69,7 +69,7 @@
                   class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                 >
                   <button
-                    v-if="source.key === 'customApi'"
+                    v-if="isElectron && source.key === 'customApi'"
                     class="p-1.5 rounded-lg text-gray-400 hover:text-violet-500 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     :title="t('settings.playback.customApi.importConfig')"
                     @click="importCustomApi"
@@ -172,6 +172,29 @@
 
       <!-- 添加音源 -->
       <div class="mt-1 pt-3 border-t border-gray-100 dark:border-white/5 shrink-0">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-[11px] text-gray-400">推荐音源（点击直接导入）</p>
+          <button
+            type="button"
+            class="text-[11px] text-primary disabled:opacity-50"
+            :disabled="isImportingPlugin"
+            @click="importAllRecommended"
+          >
+            一键导入全部
+          </button>
+        </div>
+        <div class="flex flex-wrap gap-1.5 mb-3">
+          <button
+            v-for="source in recommendedSources"
+            :key="source.url"
+            type="button"
+            class="px-2.5 py-1 rounded-lg text-[11px] bg-neutral-100 text-neutral-600 dark:bg-white/5 dark:text-neutral-300 hover:text-primary disabled:opacity-50"
+            :disabled="isImportingPlugin"
+            @click="importRecommended(source.url)"
+          >
+            {{ source.name }}
+          </button>
+        </div>
         <div class="flex items-center gap-2">
           <div class="relative flex-1">
             <i class="ri-link absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
@@ -191,7 +214,7 @@
           >
             {{ t('settings.playback.pluginSources.importBtn') }}
           </s-btn>
-          <s-btn :disabled="isImportingPlugin" @click="importFromFile">
+          <s-btn v-if="isElectron" :disabled="isImportingPlugin" @click="importFromFile">
             <i class="ri-folder-line text-sm"></i>
             {{ t('settings.playback.pluginSources.importLocal') }}
           </s-btn>
@@ -217,11 +240,13 @@ import { useI18n } from 'vue-i18n';
 
 import ResponsiveModal from '@/components/common/ResponsiveModal.vue';
 import { MusicSourcePluginStore } from '@/services/musicSource/pluginStore';
+import { recommendedMusicSources } from '@/services/musicSource/recommendedSources';
 import { useMusicSourceRegistry } from '@/services/musicSource/registry';
 import { useSettingsStore } from '@/store';
 import { type Platform } from '@/types/music';
 import type { MusicSourcePlugin } from '@/types/musicSourcePlugin';
 import { isMusicSourcePluginKey } from '@/types/musicSourcePlugin';
+import { isElectron } from '@/utils';
 import SBtn from '@/views/set/SBtn.vue';
 
 // ==================== Props & Emits ====================
@@ -245,6 +270,8 @@ const message = useMessage();
 const visible = ref(props.show);
 const selectedSources = ref<Platform[]>([...props.sources]);
 const { providers } = useMusicSourceRegistry();
+
+const recommendedSources = recommendedMusicSources;
 
 const pluginUrl = ref('');
 const isImportingPlugin = ref(false);
@@ -401,6 +428,7 @@ const installSource = async (content: string, options: { name?: string; sourceUr
 };
 
 const importFromFile = async () => {
+  if (!isElectron) return;
   try {
     const result = await window.api.importMusicSourcePlugin();
     if (result?.content) {
@@ -409,6 +437,26 @@ const importFromFile = async () => {
   } catch (error: any) {
     console.error('导入本地音源插件失败:', error);
     message.error(`${t('common.error')}：${error.message}`);
+  }
+};
+
+/** 非 Electron 环境直接用浏览器 fetch 拉取脚本文本 */
+const fetchPluginFromBrowser = async (url: string) => {
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const content = await response.text();
+  const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || '');
+  return { content, name: name || '音源插件', url };
+};
+
+const importRecommended = async (url: string) => {
+  pluginUrl.value = url;
+  await importFromUrl();
+};
+
+const importAllRecommended = async () => {
+  for (const source of recommendedSources) {
+    await importRecommended(source.url);
   }
 };
 
@@ -424,7 +472,10 @@ const importFromUrl = async () => {
 
   isImportingPlugin.value = true;
   try {
-    const result = await window.api.fetchMusicSourcePlugin(url);
+    const result =
+      typeof window.api?.fetchMusicSourcePlugin === 'function'
+        ? await window.api.fetchMusicSourcePlugin(url)
+        : await fetchPluginFromBrowser(url);
     await installSource(result.content, { name: result.name, sourceUrl: result.url });
     pluginUrl.value = '';
   } catch (error: any) {
@@ -437,6 +488,7 @@ const importFromUrl = async () => {
 
 /** 自定义 API 的 JSON 配置导入（customApi 内置 provider 的配置入口） */
 const importCustomApi = async () => {
+  if (!isElectron) return;
   try {
     const result = await window.api.importCustomApiPlugin();
     if (result && result.name && result.content) {

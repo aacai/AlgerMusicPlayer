@@ -44,9 +44,7 @@ type WorkerHttpResponseMessage = {
 };
 
 type RunnerToWorkerMessage =
-  | WorkerInitializeMessage
-  | WorkerInvokeMessage
-  | WorkerHttpResponseMessage;
+  WorkerInitializeMessage | WorkerInvokeMessage | WorkerHttpResponseMessage;
 
 export type SandboxPluginRuntime = {
   platform?: string;
@@ -98,6 +96,32 @@ type PendingInvocation = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   timeoutId: number;
+};
+
+/** 把安卓 algerNative.lxHttpRequest 的 JSON 字符串转成 worker 期待的 HTTP 响应 */
+export const parseNativeHttpResponse = (raw: string) => {
+  const result = JSON.parse(raw) as {
+    statusCode: number;
+    headers?: Record<string, string | string[]>;
+    body?: unknown;
+    error?: string;
+  };
+  if (result.error && !result.statusCode) throw new Error(result.error);
+  let body = result.body;
+  const headers = result.headers || {};
+  const contentTypeKey = Object.keys(headers).find((key) => key.toLowerCase() === 'content-type');
+  const contentType = contentTypeKey ? String(headers[contentTypeKey]) : '';
+  if (
+    contentType.includes('application/json') ||
+    (typeof body === 'string' && (body.startsWith('{') || body.startsWith('[')))
+  ) {
+    try {
+      body = JSON.parse(body as string);
+    } catch {
+      // 保留原始文本
+    }
+  }
+  return { statusCode: result.statusCode, headers, body };
 };
 
 // ─── 歌曲条目适配（方言无关的统一入参形状） ───────────────────────────────
@@ -285,6 +309,10 @@ export class PluginSandboxRunner {
   }
 
   private handleHttpRequest(message: WorkerHttpRequestMessage): void {
+    if (typeof window.api?.lxMusicHttpRequest !== 'function') {
+      void this.handleHttpRequestInBrowser(message);
+      return;
+    }
     const requestId = `plugin_sandbox_${this.plugin.id}_${Date.now()}_${Math.random()
       .toString(36)
       .slice(2, 8)}`;
@@ -315,6 +343,122 @@ export class PluginSandboxRunner {
     this.pendingHttpCancels.set(message.requestId, () => {
       void window.api.lxMusicHttpCancel(requestId);
     });
+  }
+
+  /** APK/Web 环境：浏览器 fetch 复刻主进程 HTTP 桥的响应形状 */
+  private async handleHttpRequestInBrowser(message: WorkerHttpRequestMessage): Promise<void> {
+    const nativeBridge = (
+      window as unknown as {
+        algerNative?: { lxHttpRequest?: (url: string, options: string) => string };
+      }
+    ).algerNative;
+    if (typeof nativeBridge?.lxHttpRequest === 'function') {
+      void this.handleHttpRequestNative(message, nativeBridge.lxHttpRequest);
+      return;
+    }
+
+    const controller = new AbortController();
+    this.pendingHttpCancels.set(message.requestId, () => controller.abort());
+    try {
+      const options = message.options as {
+        method?: string;
+        headers?: Record<string, string>;
+        params?: Record<string, unknown>;
+        body?: unknown;
+        data?: unknown;
+        form?: Record<string, unknown>;
+        timeout?: number;
+      };
+      const method = String(options.method || 'GET').toUpperCase();
+      let url = message.url;
+      if (options.params && typeof options.params === 'object') {
+        const search = new URLSearchParams();
+        for (const [key, value] of Object.entries(options.params)) {
+          if (value !== undefined && value !== null) search.append(key, String(value));
+        }
+        const query = search.toString();
+        if (query) url += `${url.includes('?') ? '&' : '?'}${query}`;
+      }
+
+      const headers: Record<string, string> = { ...(options.headers || {}) };
+      const fetchOptions: RequestInit = { method, headers, signal: controller.signal };
+      if (options.body !== undefined) {
+        fetchOptions.body = options.body as BodyInit;
+      } else if (options.form) {
+        fetchOptions.body = new URLSearchParams(
+          Object.entries(options.form).map(([key, value]) => [key, String(value)])
+        ).toString();
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      } else if (options.data !== undefined && method !== 'GET' && method !== 'HEAD') {
+        if (typeof options.data === 'string') {
+          fetchOptions.body = options.data;
+        } else {
+          fetchOptions.body = JSON.stringify(options.data);
+          headers['Content-Type'] = 'application/json';
+        }
+      }
+
+      const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        Number(options.timeout) || 30000
+      );
+      const response = await fetch(url, fetchOptions);
+      window.clearTimeout(timeoutId);
+      const rawBody = await response.text();
+      let body: unknown = rawBody;
+      const contentType = response.headers.get('content-type') || '';
+      if (
+        contentType.includes('application/json') ||
+        rawBody.startsWith('{') ||
+        rawBody.startsWith('[')
+      ) {
+        try {
+          body = JSON.parse(rawBody);
+        } catch {
+          // 解析失败时保留原始文本
+        }
+      }
+      const responseHeaders: Record<string, string | string[]> = {};
+      response.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      this.pendingHttpCancels.delete(message.requestId);
+      this.postToWorker({
+        type: 'http-response',
+        requestId: message.requestId,
+        response: { statusCode: response.status, headers: responseHeaders, body }
+      });
+    } catch (error) {
+      this.pendingHttpCancels.delete(message.requestId);
+      this.postToWorker({
+        type: 'http-response',
+        requestId: message.requestId,
+        response: null,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /** 安卓原生 HTTP 桥：同步请求，响应形状与主进程一致 */
+  private async handleHttpRequestNative(
+    message: WorkerHttpRequestMessage,
+    bridge: (url: string, options: string) => string
+  ): Promise<void> {
+    try {
+      const raw = bridge(message.url, JSON.stringify(message.options));
+      this.postToWorker({
+        type: 'http-response',
+        requestId: message.requestId,
+        response: parseNativeHttpResponse(raw)
+      });
+    } catch (error) {
+      this.postToWorker({
+        type: 'http-response',
+        requestId: message.requestId,
+        response: null,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 
   async initialize(): Promise<SandboxPluginRuntime> {

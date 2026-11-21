@@ -111,8 +111,6 @@ export const resolveSong = async (
   song: SongResult,
   options: ResolveSongOptions = {}
 ): Promise<ResolveSongResult | null> => {
-  if (!isElectron) return null;
-
   const settingsStore = useSettingsStore();
   const { orderedProviders } = useMusicSourceRegistry();
 
@@ -197,7 +195,7 @@ export const resolveSong = async (
       attempts.push({ providerKey: provider.key, ok: true, costMs: Date.now() - stageStart });
       const result: ResolveSongResult = {
         media: {
-          url: buildPluginMediaUrl(media.url, media.headers),
+          url: isElectron ? buildPluginMediaUrl(media.url, media.headers) : media.url,
           format: media.format || inferPluginAudioFormat(media.url, media.br),
           br: media.br ?? qualityToBitrate(quality),
           headers: media.headers

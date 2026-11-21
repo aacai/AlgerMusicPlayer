@@ -120,6 +120,7 @@ const createUnblockProvider = (
   builtin: true,
   available: true,
   resolve: async (song: SongResult, _quality: string) => {
+    if (typeof window.api?.unblockMusic !== 'function') return null;
     const result = await Promise.race([
       window.api.unblockMusic(song.id as number, { ...song }, [platform.key]),
       new Promise((resolve) => setTimeout(() => resolve(null), UNBLOCK_TIMEOUT))

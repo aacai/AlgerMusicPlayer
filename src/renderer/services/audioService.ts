@@ -44,7 +44,8 @@ class AudioService {
   constructor() {
     // Create persistent audio element
     this.audio = new Audio();
-    this.audio.crossOrigin = 'anonymous';
+    // APK/Web 下 EQ 已跳过，去掉 CORS 模式才能播放不带 ACAO 头的音源直链
+    if (isElectron) this.audio.crossOrigin = 'anonymous';
     this.audio.preload = 'auto';
 
     // Bind native DOM events

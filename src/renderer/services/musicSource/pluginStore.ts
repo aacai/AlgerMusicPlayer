@@ -205,10 +205,18 @@ export const MusicSourcePluginStore = {
   async checkUpdate(id: string): Promise<{ hasUpdate: boolean; latestSource?: string }> {
     const plugin = this.getPlugin(id);
     if (!plugin?.sourceUrl) return { hasUpdate: false };
+    const sourceUrl = plugin.sourceUrl;
     try {
-      const fetched = await window.api.fetchMusicSourcePlugin(plugin.sourceUrl);
-      const remoteId = hashMusicSource(fetched.content);
-      return { hasUpdate: remoteId !== plugin.id, latestSource: fetched.content };
+      let content: string;
+      if (typeof window.api?.fetchMusicSourcePlugin === 'function') {
+        content = (await window.api.fetchMusicSourcePlugin(sourceUrl)).content;
+      } else {
+        const response = await fetch(sourceUrl, { mode: 'cors' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        content = await response.text();
+      }
+      const remoteId = hashMusicSource(content);
+      return { hasUpdate: remoteId !== plugin.id, latestSource: content };
     } catch (error) {
       console.warn('[pluginStore] 检查更新失败:', error);
       return { hasUpdate: false };

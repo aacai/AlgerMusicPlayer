@@ -23,7 +23,7 @@
         />
       </setting-item>
 
-      <setting-item v-if="isElectron" :title="t('settings.playback.musicSources')">
+      <setting-item :title="t('settings.playback.musicSources')">
         <template #description>
           <div class="flex items-center gap-2">
             <n-switch v-model:value="setData.enableMusicUnblock">
@@ -116,11 +116,7 @@
       </div>
     </div>
 
-    <music-source-settings
-      v-if="isElectron"
-      v-model:show="showMusicSourcesModal"
-      v-model:sources="musicSources"
-    />
+    <music-source-settings v-model:show="showMusicSourcesModal" v-model:sources="musicSources" />
   </div>
 </template>
 
