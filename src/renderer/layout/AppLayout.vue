@@ -6,7 +6,7 @@
   <div v-else class="layout-page" :class="{ mobile: settingsStore.isMobile }">
     <div id="layout-main" class="layout-main">
       <title-bar />
-      <div class="layout-main-page">
+      <div class="layout-main-page" :class="{ 'is-medium': isMedium }">
         <!-- 侧边菜单栏 -->
         <app-menu v-if="!settingsStore.isMobile" class="menu" :menus="menuStore.menus" />
         <div class="main">
@@ -104,6 +104,7 @@ const settingsStore = useSettingsStore();
 const menuStore = useMenuStore();
 
 const isPlay = computed(() => playerStore.playMusic && playerStore.playMusic.id);
+const isMedium = computed(() => settingsStore.windowSizeClass === 'medium');
 const route = useRoute();
 
 // 判断当前路由是否应该在移动端显示AppMenu
@@ -159,6 +160,31 @@ provide('openPlaylistDrawer', openPlaylistDrawer);
 
 .layout-main-page {
   @apply flex h-full;
+}
+
+/* medium（600–840dp）：图标导轨 + 内容区的紧凑双栏 */
+.layout-main-page.is-medium {
+  :deep(.app-menu.menu) {
+    width: 68px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+
+    .app-menu-item-link {
+      width: 68px !important;
+      justify-content: center;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      margin-left: 0 !important;
+    }
+
+    .app-menu-item-text {
+      display: none !important;
+    }
+  }
+
+  .main-content {
+    @apply px-2;
+  }
 }
 
 .menu {

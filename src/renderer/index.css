@@ -102,9 +102,10 @@
 }
 
 /* 响应式边距 */
-@media (min-width: 640px) {
+/* 与 WindowSizeClass 对齐：compact < 600dp，medium 600–840dp，expanded >= 840dp */
+@media (min-width: 600px) {
   :root {
-    --page-px: 1.5rem; /* 24px，对应 sm:px-6 */
+    --page-px: 1.5rem; /* 24px */
     --page-pr: 1.5rem;
   }
   .mobile {
@@ -112,9 +113,9 @@
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 840px) {
   :root {
-    --page-px: 2rem; /* 32px，对应 lg:px-8 */
+    --page-px: 2rem; /* 32px */
     --page-pr: 2rem;
   }
 }

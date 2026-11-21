@@ -52,7 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
+
+import { isMobile } from '@/utils';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -69,12 +71,6 @@ const show = computed({
   set: (val) => emit('update:modelValue', val)
 });
 
-const isMobile = ref(false);
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768;
-};
-
 const close = () => {
   show.value = false;
   emit('close');
@@ -83,15 +79,6 @@ const close = () => {
 const handleMaskClick = () => {
   close();
 };
-
-onMounted(() => {
-  checkMobile();
-  window.addEventListener('resize', checkMobile);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile);
-});
 
 // Prevent body scroll when modal is open
 watch(show, (val) => {

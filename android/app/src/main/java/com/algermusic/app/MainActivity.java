@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
@@ -38,11 +40,13 @@ import java.util.Map;
  */
 public class MainActivity extends Activity {
     private static final String ASSET_HOST = "appassets.androidplatform.net";
+    private static final String API_HOST = "app.api.local";
     private static final String ASSET_PREFIX = "/assets/";
     private static final String START_URL =
             "https://appassets.androidplatform.net/assets/www/index.html";
 
     private WebView webView;
+    private long lastBackAt = 0L;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -93,7 +97,11 @@ public class MainActivity extends Activity {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                if (uri == null || !ASSET_HOST.equals(uri.getHost())) {
+                if (uri == null) return null;
+                if (API_HOST.equals(uri.getHost())) {
+                    return NeteaseApi.handle(uri);
+                }
+                if (!ASSET_HOST.equals(uri.getHost())) {
                     return null;
                 }
                 String path = uri.getPath();
@@ -122,7 +130,23 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(new MusicSourceBridge(), "algerNative");
 
         setContentView(root);
+        registerBackHandler();
         webView.loadUrl(START_URL);
+    }
+
+    /**
+     * 注册物理返回键处理。
+     * Android 13+ 的预测性返回（predictive back）在 targetSdk >= 34 时默认开启，
+     * 系统会在窗口层直接把返回动作转交给 OnBackInvokedDispatcher，
+     * 此时 Activity.onBackPressed() 与 onKeyDown() 都不会被调用，
+     * 必须注册 OnBackInvokedCallback 才能拦截。
+     */
+    private void registerBackHandler() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    () -> handleBack());
+        }
     }
 
     private WebResourceResponse serveAsset(String assetPath) {
@@ -160,12 +184,45 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        // Android 14+ 已注册 OnBackInvokedCallback，这里再拦截会和它重复触发，
+        // 导致一次按键回退两层；只有旧系统才走按键分发兜底。
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                && event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                handleBack();
+            }
+            return true;
         }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public void onBackPressed() {
+        // Android 14+ 已由 OnBackInvokedCallback 接管，避免重复回退
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            handleBack();
+        }
+    }
+
+    private void handleBack() {
+        long now = SystemClock.elapsedRealtime();
+        // 预测性返回与按键分发可能同时触发，做一次去抖避免一次按键回退两层
+        if (now - lastBackAt < 400) {
+            return;
+        }
+        lastBackAt = now;
+        if (webView == null) {
+            finish();
+            return;
+        }
+        webView.evaluateJavascript(
+                "(function(){return typeof window.__algerBack === 'function' && window.__algerBack()})()",
+                value -> {
+                    if (!"true".equals(value)) {
+                        runOnUiThread(this::finish);
+                    }
+                });
     }
 
     @Override

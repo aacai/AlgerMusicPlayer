@@ -16,7 +16,12 @@
             placement="bottom"
           >
             <template #trigger>
-              <router-link class="app-menu-item-link" :to="item.path">
+              <router-link
+                class="app-menu-item-link"
+                :to="item.path"
+                active-class=""
+                exact-active-class=""
+              >
                 <i
                   class="iconfont app-menu-item-icon"
                   :style="iconStyle(index)"
@@ -39,7 +44,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -69,15 +74,8 @@ const props = defineProps({
 
 const route = useRoute();
 const router = useRouter();
-const path = ref(route.path);
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
-watch(
-  () => route.path,
-  async (newParams) => {
-    path.value = newParams;
-  }
-);
 
 // 登录后显示用户头像，否则显示默认 logo
 const userAvatar = computed(() => {
@@ -95,8 +93,9 @@ const handleLogoClick = () => {
 
 const { t } = useI18n();
 
+// 单一真源：直接读响应式路由，避免本地缓存与 router-link 状态不同步导致双高亮
 const isChecked = (index: number) => {
-  return path.value === props.menus[index].path;
+  return route.path === props.menus[index].path;
 };
 
 const iconStyle = (index: number) => {
@@ -181,8 +180,11 @@ const toggleMenu = () => {
 .app-menu-item-icon {
   @apply transition-all duration-200 text-gray-500 dark:text-gray-400;
 
-  &:hover {
-    @apply text-green-500 scale-105 !important;
+  // 触屏下 :hover 会粘在上一次点过的 tab 上，造成两个图标同时高亮
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @apply text-green-500 scale-105 !important;
+    }
   }
 }
 

@@ -25,12 +25,13 @@
             class="melo-lyrics-pane"
             :class="{ 'is-off': !wideLayout && !showLyrics }"
             @dblclick="closeLyrics"
+            @click.self="closeLyrics"
           >
             <div v-if="!lrcArray.length" class="melo-lyrics-empty">
               <span>暂无歌词</span>
               <button class="melo-lyrics-back" @click="closeLyrics">返回唱片</button>
             </div>
-            <div v-else ref="lyricScrollRef" class="melo-lyrics-scroller">
+            <div v-else ref="lyricScrollRef" class="melo-lyrics-scroller" @click.self="closeLyrics">
               <div class="melo-lyrics-pad"></div>
               <div
                 v-for="(line, index) in lrcArray"
@@ -62,7 +63,6 @@
                   <span class="melo-vinyl"></span>
                   <img v-if="displayCover" :src="displayCover" class="melo-disc-cover" alt="" />
                   <span v-else class="melo-disc-cover melo-disc-fallback">{{ initial }}</span>
-                  <span class="melo-spindle"></span>
                 </div>
               </div>
               <div class="melo-song">
@@ -88,6 +88,13 @@
         </div>
       </div>
 
+      <simple-play-bar
+        v-if="settingsStore.isMobile"
+        class="melo-mobile-controls"
+        :is-dark="isDark"
+        compact
+      />
+
       <melo-comments
         v-model="meloCommentsOpen"
         :name="songTitle"
@@ -100,14 +107,15 @@
 
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
+import SimplePlayBar from '@/components/player/SimplePlayBar.vue';
 import { meloCommentsOpen } from '@/hooks/meloComments';
 import { lrcArray, lrcTimeArray, nowIndex, nowTime, setAudioTime } from '@/hooks/MusicHook';
 import { usePlayerStore } from '@/store/modules/player';
 import { useSettingsStore } from '@/store/modules/settings';
 import type { SongResult } from '@/types/music';
-import { getImgUrl } from '@/utils';
+import { getImgUrl, isElectron } from '@/utils';
 import { useCachedImage } from '@/utils/imageCache';
 
 import MeloComments from './MeloComments.vue';
@@ -170,6 +178,20 @@ const closeLyrics = () => {
   if (wideLayout.value) return;
   showLyrics.value = false;
 };
+
+// 安卓物理返回键：歌词详情优先退回唱片页，再由全局逻辑决定是否关闭全屏
+if (!isElectron) {
+  (window as unknown as { __algerMeloBack?: () => boolean }).__algerMeloBack = () => {
+    if (!showLyrics.value || wideLayout.value) return false;
+    closeLyrics();
+    return true;
+  };
+}
+onUnmounted(() => {
+  if (!isElectron) {
+    delete (window as unknown as { __algerMeloBack?: () => boolean }).__algerMeloBack;
+  }
+});
 
 const currentLine = computed(() => {
   if (!lrcArray.value.length) return null;
@@ -380,6 +402,21 @@ watch(lyricsVisible, (visible) => {
 }
 
 /* ---------- 骨架 ---------- */
+.melo-mobile-controls.play-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  /* SimplePlayBar 自带 w-full，绝对定位时必须清掉，否则 right 被忽略、右侧内容被裁 */
+  width: auto !important;
+  bottom: calc(6px + env(safe-area-inset-bottom));
+  z-index: 3;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--melo-panel);
+  box-shadow: 0 10px 30px rgba(25, 26, 32, 0.12);
+  backdrop-filter: blur(16px);
+}
+
 .melo-shell {
   position: relative;
   z-index: 1;
@@ -389,8 +426,8 @@ watch(lyricsVisible, (visible) => {
   height: 100%;
   max-width: 560px;
   margin: 0 auto;
-  /* 顶部让开应用标题栏，底部为播放条留出空间，全屏页不再自带控制条 */
-  padding: calc(44px + 12px) 20px calc(112px + env(safe-area-inset-bottom));
+  /* 窄屏整体下移，底部给简洁播放条面板留足空间 */
+  padding: 76px 20px calc(104px + env(safe-area-inset-bottom));
 }
 
 .melo-shell.is-wide {
@@ -491,8 +528,8 @@ watch(lyricsVisible, (visible) => {
   flex: 1;
   min-height: 0;
   width: 100%;
-  max-width: 400px;
-  max-height: 400px;
+  max-width: 260px;
+  max-height: 260px;
   aspect-ratio: 1 / 1;
   margin: auto 0;
   border-radius: 28px;
@@ -590,18 +627,6 @@ watch(lyricsVisible, (visible) => {
   color: #fff;
   font-size: 40px;
   font-weight: 700;
-}
-
-.melo-spindle {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  border-radius: 50%;
-  background: #0c0c12;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
 }
 
 @keyframes melo-spin {

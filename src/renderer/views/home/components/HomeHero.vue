@@ -273,6 +273,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { getHotSinger, getPersonalFM, getPersonalizedPlaylist } from '@/api/home';
+import { normalizePersonalizedPlaylists } from '@/api/homeResponse';
 import { fmTrash } from '@/api/music';
 import { navigateToMusicList } from '@/components/common/MusicListNavigator';
 import {
@@ -557,8 +558,8 @@ const fetchHeroData = async () => {
     promises.push(
       getPersonalizedPlaylist(8)
         .then((res: any) => {
-          const list = res.result || res.data;
-          if (list && !isLoggedIn.value) hotPlaylists.value = list;
+          const list = normalizePersonalizedPlaylists(res);
+          if (!isLoggedIn.value) hotPlaylists.value = list;
         })
         .catch(() => {})
     );

@@ -313,17 +313,16 @@
 </template>
 
 <script setup lang="ts">
-import { breakpointsTailwind, useBreakpoints, useFullscreen, useIdle } from '@vueuse/core';
+import { useFullscreen, useIdle } from '@vueuse/core';
 import { NButton, NIcon, NSlider, NSpin, NTooltip } from 'naive-ui';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getMvUrl } from '@/api/mv';
 import { IMvItem } from '@/types/mv';
+import { isMobile } from '@/utils';
 
 const { t } = useI18n();
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const isMobile = breakpoints.smaller('md');
 
 type PlayMode = 'single' | 'auto';
 const PLAY_MODE = {

@@ -1,5 +1,9 @@
 <template>
-  <div class="play-bar" :class="{ 'dark-theme': isDarkMode }" ref="playBarRef">
+  <div
+    class="play-bar"
+    :class="{ 'dark-theme': isDarkMode, 'is-compact': compact }"
+    ref="playBarRef"
+  >
     <div class="container">
       <!-- 顶部进度条和时间 -->
       <div class="top-section">
@@ -24,7 +28,25 @@
       <!-- 主控制区域 -->
       <div class="controls-section">
         <div class="left-controls">
-          <button class="control-btn small-btn" @click="togglePlayMode">
+          <template v-if="compact">
+            <button class="control-btn small-btn" @click="toggleFavorite">
+              <i
+                class="iconfont"
+                :class="{
+                  'like-active': isFavorite,
+                  'ri-heart-3-fill': isFavorite,
+                  'ri-heart-3-line': !isFavorite
+                }"
+              ></i>
+            </button>
+            <button class="control-btn small-btn" @click="toggleComments">
+              <i
+                class="iconfont ri-chat-3-line"
+                :class="{ 'text-green-500': meloCommentsOpen }"
+              ></i>
+            </button>
+          </template>
+          <button v-else class="control-btn small-btn" @click="togglePlayMode">
             <i
               class="iconfont"
               :class="[playModeIcon, { 'intelligence-active': playMode === 3 }]"
@@ -50,15 +72,21 @@
         </div>
 
         <div class="right-controls">
-          <!-- 播放列表按钮 -->
+          <!-- 简洁模式把播放模式放右侧，避免挤掉喜欢/评论 -->
+          <button v-if="compact" class="control-btn small-btn" @click="togglePlayMode">
+            <i
+              class="iconfont"
+              :class="[playModeIcon, { 'intelligence-active': playMode === 3 }]"
+            ></i>
+          </button>
           <button class="control-btn small-btn" @click="openPlayListDrawer">
             <i class="iconfont icon-list"></i>
           </button>
         </div>
       </div>
 
-      <!-- 底部控制区域 -->
-      <div class="bottom-section">
+      <!-- 底部控制区域：窄屏简洁模式不显示音量条 -->
+      <div v-if="!compact" class="bottom-section">
         <div class="spacer"></div>
         <!-- 音量控制 -->
         <div class="volume-control">
@@ -81,7 +109,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 
+import { meloCommentsOpen } from '@/hooks/meloComments';
 import { allTime, nowTime } from '@/hooks/MusicHook';
+import { useFavorite } from '@/hooks/useFavorite';
 import { usePlaybackControl } from '@/hooks/usePlaybackControl';
 import { usePlayMode } from '@/hooks/usePlayMode';
 import { useVolumeControl } from '@/hooks/useVolumeControl';
@@ -92,9 +122,11 @@ import { secondToMinute } from '@/utils';
 const props = withDefaults(
   defineProps<{
     isDark: boolean;
+    compact?: boolean;
   }>(),
   {
-    isDark: false
+    isDark: false,
+    compact: false
   }
 );
 
@@ -106,6 +138,12 @@ const { isPlaying: play, playMusicEvent, handleNext, handlePrev } = usePlaybackC
 
 // 播放模式
 const { playMode, playModeIcon, togglePlayMode } = usePlayMode();
+
+// 喜欢 / 评论（简洁模式下的左右两侧入口）
+const { isFavorite, toggleFavorite } = useFavorite();
+const toggleComments = () => {
+  meloCommentsOpen.value = !meloCommentsOpen.value;
+};
 
 // 音量控制（统一通过 playerStore 管理）
 const {
@@ -332,6 +370,38 @@ onMounted(() => {
     --button-hover: rgba(255, 255, 255, 0.1);
   }
 
+  /* 窄屏简洁模式：只保留进度与控制，音量条由 compact 隐藏 */
+  &.is-compact {
+    /* 颜色跟随 Melo 页面主题，避免浅色背景上出现白字 */
+    --text-color: var(--melo-text-body, #191a20);
+    --muted-color: var(--melo-text-muted, rgba(25, 26, 32, 0.45));
+    --track-color: var(--melo-fill-strong, rgba(25, 26, 32, 0.12));
+    --track-color-hover: var(--melo-fill-strong, rgba(25, 26, 32, 0.12));
+    --button-bg: var(--melo-fill, rgba(25, 26, 32, 0.06));
+    --button-hover: var(--melo-fill-strong, rgba(25, 26, 32, 0.12));
+
+    .top-section {
+      @apply mb-1;
+
+      .progress-bar {
+        @apply h-1 mb-1;
+      }
+
+      .time-display {
+        @apply text-xs;
+      }
+    }
+
+    .controls-section {
+      @apply mb-0 px-1;
+    }
+
+    .left-controls,
+    .right-controls {
+      @apply gap-0.5;
+    }
+  }
+
   /* 极亮主题色适配 */
   &.light-theme-color {
     .progress-fill {
@@ -545,8 +615,8 @@ onMounted(() => {
 }
 
 .like-active {
-  color: var(--fill-color);
-  text-shadow: 0 0 8px var(--fill-color-transparent);
+  @apply text-red-500;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
 }
 
 .intelligence-active {

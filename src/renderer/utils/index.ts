@@ -96,6 +96,13 @@ export const isMobile = computed(() => {
   return settingsStore.isMobile;
 });
 
+export const windowSizeClass = computed(() => {
+  const settingsStore = useSettingsStore();
+  return settingsStore.windowSizeClass;
+});
+
+export const isMediumScreen = computed(() => windowSizeClass.value === 'medium');
+
 export const isElectron = (window as any).electron !== undefined;
 
 export const isLyricWindow = computed(() => {

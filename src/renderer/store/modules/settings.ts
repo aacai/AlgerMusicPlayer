@@ -2,7 +2,7 @@ import cloneDeep from 'lodash/cloneDeep';
 import isArray from 'lodash/isArray';
 import mergeWith from 'lodash/mergeWith';
 import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import setDataDefault from '@/../main/set.json';
 import homeRouter from '@/router/home';
@@ -18,10 +18,25 @@ import {
 
 import { type AppUpdateState, createDefaultAppUpdateState } from '../../../shared/appUpdate';
 
-const MOBILE_MAX_WIDTH = 640;
+// WindowSizeClass 标准分档：compact < 600dp，medium 600–840dp，expanded >= 840dp
+export type WindowSizeClass = 'compact' | 'medium' | 'expanded';
+
+const COMPACT_MAX_WIDTH = 600;
+const MEDIUM_MAX_WIDTH = 840;
+
+const resolveSizeClass = (width: number): WindowSizeClass => {
+  if (width < COMPACT_MAX_WIDTH) return 'compact';
+  if (width < MEDIUM_MAX_WIDTH) return 'medium';
+  return 'expanded';
+};
 
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<ThemeType>(getCurrentTheme());
+  const windowSizeClass = ref<WindowSizeClass>('expanded');
+  const isCompact = computed(() => windowSizeClass.value === 'compact');
+  const isMedium = computed(() => windowSizeClass.value === 'medium');
+  const isExpanded = computed(() => windowSizeClass.value === 'expanded');
+  // 兼容原有调用点：只有 compact 档才是手机布局
   const isMobile = ref(false);
   const isMiniMode = ref(false);
   const showUpdateModal = ref(false);
@@ -218,37 +233,31 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   };
 
-  // 计算移动端状态的函数：只按窗口宽度判断，避免横屏平板/折叠屏被平台误判
-  const calculateMobileStatus = () => {
-    const tabletMode = setData.value?.tabletMode;
-    // outerWidth 不受页面缩放影响，避免 Cmd+ 放大后被误判成小屏
-    const windowWidth = window.outerWidth || window.innerWidth;
-
-    return windowWidth < MOBILE_MAX_WIDTH && !tabletMode;
+  // 按 WindowSizeClass 标准判定尺寸档位
+  const calculateSizeClass = (): WindowSizeClass => {
+    const windowWidth = window.innerWidth || window.outerWidth || 0;
+    return resolveSizeClass(windowWidth);
   };
 
-  // 更新移动端状态和DOM类
+  // 更新尺寸档位、移动端状态和 DOM 类
   const updateMobileStatus = () => {
     const menuStore = useMenuStore();
-    const shouldUseMobileStyle = calculateMobileStatus();
+    const sizeClass = calculateSizeClass();
+    // tabletMode 仍作为用户强制使用桌面布局的开关，只影响 compact 档
+    const shouldUseMobileStyle = sizeClass === 'compact' && !setData.value?.tabletMode;
 
-    // 更新store状态
+    windowSizeClass.value = sizeClass;
+    isMobile.value = shouldUseMobileStyle;
+
     if (shouldUseMobileStyle) {
       menuStore.setMenus(homeRouter.filter((item) => item.meta.isMobile));
     } else {
       menuStore.setMenus(homeRouter);
     }
 
-    // 更新DOM类
-    if (shouldUseMobileStyle) {
-      document.documentElement.classList.add('mobile');
-      document.documentElement.classList.remove('pc');
-    } else {
-      document.documentElement.classList.add('pc');
-      document.documentElement.classList.remove('mobile');
-    }
-
-    isMobile.value = shouldUseMobileStyle;
+    const root = document.documentElement;
+    root.classList.remove('size-compact', 'size-medium', 'size-expanded', 'mobile', 'pc');
+    root.classList.add(`size-${sizeClass}`, shouldUseMobileStyle ? 'mobile' : 'pc');
   };
 
   // 监听平板模式变化
@@ -268,6 +277,10 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     setData,
     theme,
+    windowSizeClass,
+    isCompact,
+    isMedium,
+    isExpanded,
     isMobile,
     isMiniMode,
     showUpdateModal,
