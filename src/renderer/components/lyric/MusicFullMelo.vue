@@ -27,11 +27,24 @@
             @dblclick="closeLyrics"
             @click.self="closeLyrics"
           >
+            <div v-if="scrubIndex !== null" class="melo-scrub" @click.stop="seekToScrubbedLine">
+              <span class="melo-scrub-time">{{ scrubTimeLabel }}</span>
+            </div>
             <div v-if="!lrcArray.length" class="melo-lyrics-empty">
               <span>暂无歌词</span>
               <button class="melo-lyrics-back" @click="closeLyrics">返回唱片</button>
             </div>
-            <div v-else ref="lyricScrollRef" class="melo-lyrics-scroller" @click.self="closeLyrics">
+            <div
+              v-else
+              ref="lyricScrollRef"
+              class="melo-lyrics-scroller"
+              @click.self="closeLyrics"
+              @touchstart.passive="onLyricTouchStart"
+              @touchmove="onLyricTouchMove"
+              @touchend="onLyricTouchEnd"
+              @touchcancel="onLyricTouchEnd"
+              @scroll.passive="onLyricScroll"
+            >
               <div class="melo-lyrics-pad"></div>
               <div
                 v-for="(line, index) in lrcArray"
@@ -40,11 +53,20 @@
                 class="melo-lyric-line"
                 :class="{
                   'is-active': index === nowIndex,
-                  'is-near': Math.abs(index - nowIndex) === 1
+                  'is-near': Math.abs(index - nowIndex) === 1,
+                  'is-scrub': index === scrubIndex
                 }"
-                @click="seekToLine(index)"
+                @click="seekToClickedLine(index)"
               >
-                <span class="melo-lyric-text" :style="lineStyle(index)">{{ line.text }}</span>
+                <span class="melo-lyric-text">
+                  <template v-if="index === nowIndex">
+                    <span class="melo-lyric-sung">{{
+                      line.text.slice(0, sungCharCount(index))
+                    }}</span
+                    >{{ line.text.slice(sungCharCount(index)) }}
+                  </template>
+                  <template v-else>{{ line.text }}</template>
+                </span>
                 <span v-if="line.trText" class="melo-lyric-trans">{{ line.trText }}</span>
               </div>
               <div class="melo-lyrics-pad"></div>
@@ -111,12 +133,20 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 import SimplePlayBar from '@/components/player/SimplePlayBar.vue';
 import { meloCommentsOpen } from '@/hooks/meloComments';
-import { lrcArray, lrcTimeArray, nowIndex, nowTime, setAudioTime } from '@/hooks/MusicHook';
+import {
+  allTime,
+  lrcArray,
+  lrcTimeArray,
+  nowIndex,
+  nowTime,
+  setAudioTime
+} from '@/hooks/MusicHook';
 import { usePlayerStore } from '@/store/modules/player';
 import { useSettingsStore } from '@/store/modules/settings';
 import type { SongResult } from '@/types/music';
 import { getImgUrl, isElectron } from '@/utils';
 import { useCachedImage } from '@/utils/imageCache';
+import { formatLyricTimeRange, lyricSungCharCount } from '@/utils/lyricTime';
 
 import MeloComments from './MeloComments.vue';
 
@@ -176,6 +206,7 @@ const openLyrics = () => {
 
 const closeLyrics = () => {
   if (wideLayout.value) return;
+  scrubIndex.value = null;
   showLyrics.value = false;
 };
 
@@ -202,20 +233,86 @@ const seekToLine = (index: number) => {
   setAudioTime(index);
 };
 
-// 当前高亮行进度：绿→灰渐变填充，形似 Melo 的逐句颜色推进
-function lineStyle(index: number): Record<string, string> {
-  if (index !== nowIndex.value) return {};
+// 窄屏歌词中心线：滑动时显示当前对准的歌词时间，松手后保留，
+// 点中心线（或点某句歌词）才跳转到那个位置；滑动本身不改变播放进度。
+const scrubIndex = ref<number | null>(null);
+let lyricTouchStartY = 0;
+let lyricDragging = false;
+
+const scrubTimeLabel = computed(() => {
+  if (scrubIndex.value === null) return '';
+  const start = lrcTimeArray.value[scrubIndex.value] ?? 0;
+  const end = lrcTimeArray.value[scrubIndex.value + 1] ?? allTime.value;
+  return formatLyricTimeRange(start, end);
+});
+
+function findCenterLyricIndex(): number | null {
+  const root = lyricScrollRef.value;
+  if (!root) return null;
+  const rect = root.getBoundingClientRect();
+  const centerY = rect.top + rect.height / 2;
+  const lines = Array.from(root.querySelectorAll<HTMLElement>('.melo-lyric-line'));
+  if (!lines.length) return null;
+  let best = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  lines.forEach((line, index) => {
+    const lineRect = line.getBoundingClientRect();
+    const distance = Math.abs((lineRect.top + lineRect.bottom) / 2 - centerY);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  });
+  return best;
+}
+
+function syncScrubIndex(): void {
+  if (!lyricDragging || wideLayout.value || !showLyrics.value) return;
+  scrubIndex.value = findCenterLyricIndex();
+}
+
+function onLyricTouchStart(event: TouchEvent): void {
+  const touch = event.touches[0];
+  if (!touch) return;
+  lyricTouchStartY = touch.clientY;
+  lyricDragging = false;
+}
+
+function onLyricTouchMove(event: TouchEvent): void {
+  const touch = event.touches[0];
+  if (!touch) return;
+  if (!lyricDragging && Math.abs(touch.clientY - lyricTouchStartY) < 8) return;
+  lyricDragging = true;
+  syncScrubIndex();
+}
+
+function onLyricTouchEnd(): void {
+  // 松手只结束拖动，中心线保留，等用户点它再跳转
+  lyricDragging = false;
+}
+
+function onLyricScroll(): void {
+  syncScrubIndex();
+}
+
+function seekToScrubbedLine(): void {
+  if (scrubIndex.value === null) return;
+  const index = scrubIndex.value;
+  scrubIndex.value = null;
+  seekToLine(index);
+}
+
+function seekToClickedLine(index: number): void {
+  scrubIndex.value = null;
+  seekToLine(index);
+}
+
+// 当前句按字符进度着色：长句换行时颜色会连续跟进，不会每行重复渐变
+function sungCharCount(index: number): number {
+  const text = String(lrcArray.value[index]?.text || '');
   const start = lrcTimeArray.value[index];
   const end = lrcTimeArray.value[index + 1];
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return {};
-  const progress = Math.min(100, Math.max(0, ((nowTime.value - start) / (end - start)) * 100));
-  const rest = isDark.value ? 'rgba(240, 241, 246, 0.34)' : 'rgba(25, 26, 32, 0.32)';
-  return {
-    backgroundImage: `linear-gradient(to right, #22C16B ${progress}%, ${rest} ${progress}%)`,
-    backgroundClip: 'text',
-    WebkitBackgroundClip: 'text',
-    color: 'transparent'
-  };
+  return lyricSungCharCount(text, start, end, nowTime.value);
 }
 
 const lyricScrollRef = ref<HTMLElement | null>(null);
@@ -251,12 +348,17 @@ watch(isVisible, async (visible) => {
     void scrollToActiveLine(false);
   } else {
     meloCommentsOpen.value = false;
+    scrubIndex.value = null;
   }
 });
 
 // 切到歌词 / 跨过宽屏断点时，立即定位当前句
 watch(lyricsVisible, (visible) => {
-  if (visible) void scrollToActiveLine(false);
+  if (visible) {
+    void scrollToActiveLine(false);
+  } else {
+    scrubIndex.value = null;
+  }
 });
 </script>
 
@@ -741,6 +843,42 @@ watch(lyricsVisible, (visible) => {
   height: 38vh;
 }
 
+/* 拖动歌词时固定在中心行的时间提示，松手即隐藏 */
+.melo-scrub {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  right: 12px;
+  height: 0;
+  z-index: 4;
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  justify-content: flex-end;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background: var(--melo-text-faint);
+  }
+}
+
+.melo-scrub-time {
+  position: relative;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--melo-panel);
+  color: var(--melo-text-body);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 14px rgba(25, 26, 32, 0.12);
+}
+
 .melo-lyric-line {
   display: flex;
   flex-direction: column;
@@ -762,12 +900,21 @@ watch(lyricsVisible, (visible) => {
     color 0.2s ease;
 }
 
+.melo-lyric-sung {
+  color: #22c16b;
+}
+
 .melo-lyric-line.is-near .melo-lyric-text {
   color: var(--melo-lyric-near);
 }
 
 .melo-lyric-line.is-active .melo-lyric-text {
   font-size: 23px;
+  font-weight: 700;
+}
+
+.melo-lyric-line.is-scrub .melo-lyric-text {
+  color: var(--melo-text) !important;
   font-weight: 700;
 }
 

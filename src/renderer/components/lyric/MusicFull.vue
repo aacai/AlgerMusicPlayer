@@ -221,7 +221,15 @@
                   >
                 </div>
                 <!-- 普通歌词显示 -->
-                <span v-else :style="getLrcStyle(index)">{{ item.text }}</span>
+                <span v-else :style="getLrcStyle(index)">
+                  <template v-if="index === nowIndex">
+                    <span :style="{ color: activeLyricColor() }">{{
+                      item.text.slice(0, sungCharCount(index))
+                    }}</span
+                    >{{ item.text.slice(sungCharCount(index)) }}
+                  </template>
+                  <template v-else>{{ item.text }}</template>
+                </span>
                 <div v-show="config.showTranslation" class="music-lrc-text-tr">
                   {{ item.trText }}
                 </div>
@@ -267,12 +275,12 @@ import {
   artistList,
   correctionTime,
   lrcArray,
+  lrcTimeArray,
   nowIndex,
   nowTime,
   playMusic,
   setAudioTime,
-  textColors,
-  useLyricProgress
+  textColors
 } from '@/hooks/MusicHook';
 import { useArtist } from '@/hooks/useArtist';
 import { useLyricBackground } from '@/hooks/useLyricBackground';
@@ -283,6 +291,7 @@ import { DEFAULT_LYRIC_CONFIG, LyricConfig } from '@/types/lyric';
 import { getImgUrl, isElectron, isMobile } from '@/utils';
 import { getTextColors } from '@/utils/linearColor';
 import { LYRIC_CONFIG_CHANGE_EVENT, readLyricConfig, writeLyricConfig } from '@/utils/lyricConfig';
+import { lyricSungCharCount } from '@/utils/lyricTime';
 
 const { t } = useI18n();
 // 定义 refs
@@ -555,38 +564,32 @@ watch(
   { immediate: true }
 );
 
-const { getLrcStyle: originalLrcStyle } = useLyricProgress();
-
 const getLrcStyle = (index: number) => {
   const colors = textColors.value || getTextColors();
-  const originalStyle = originalLrcStyle(index);
   const focusOn = config.value.focusCurrentLyric;
 
   if (index === nowIndex.value) {
-    // 当前播放的歌词
-    if (originalStyle.backgroundImage) {
-      // 有渐变进度时，使用渐变效果
-      return {
-        ...originalStyle,
-        backgroundImage: originalStyle.backgroundImage
-          .replace(/#ffffff/g, colors.active)
-          .replace(/#ffffff8a/g, `${colors.primary}`),
-        backgroundClip: 'text',
-        WebkitBackgroundClip: 'text',
-        color: 'transparent'
-      };
-    } else {
-      return {
-        // 聚焦模式下当前行使用全亮文字色（Apple Music 观感），其余行维持半透明
-        color: focusOn ? colors.active : colors.primary
-      };
-    }
+    // 已唱部分由内层 span 着色，避免长句换行后每行都重复一遍渐变
+    return {
+      color: focusOn ? colors.active : colors.primary
+    };
   }
 
   // 非当前播放的歌词，使用普通颜色
   return {
     color: colors.primary
   };
+};
+
+const activeLyricColor = () => (textColors.value || getTextColors()).active;
+
+// 当前句按字符进度着色，换行后颜色连续跟进
+const sungCharCount = (index: number) => {
+  const text = lrcArray.value[index]?.text;
+  if (!text) return 0;
+  const start = lrcTimeArray.value[index];
+  const end = lrcTimeArray.value[index + 1] ?? start + 1;
+  return lyricSungCharCount(text, start, end, nowTime.value + correctionTime.value);
 };
 
 // Apple Music 风格聚焦效果（#750）：

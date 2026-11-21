@@ -9,7 +9,8 @@ export default {
     unfavorite: '좋아요 취소',
     removeFromPlaylist: '플레이리스트에서 삭제',
     dislike: '싫어요',
-    undislike: '싫어요 취소'
+    undislike: '싫어요 취소',
+    copyName: '곡명 복사'
   },
   message: {
     downloading: '다운로드 중입니다. 잠시 기다려주세요...',

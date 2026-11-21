@@ -9,7 +9,8 @@ export default {
     unfavorite: 'Unlike',
     removeFromPlaylist: 'Remove from Playlist',
     dislike: 'Dislike',
-    undislike: 'Undislike'
+    undislike: 'Undislike',
+    copyName: 'Copy song name'
   },
   message: {
     downloading: 'Downloading, please wait...',

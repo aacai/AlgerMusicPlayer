@@ -9,7 +9,8 @@ export default {
     unfavorite: '取消喜歡',
     removeFromPlaylist: '從播放清單中刪除',
     dislike: '不喜歡',
-    undislike: '取消不喜歡'
+    undislike: '取消不喜歡',
+    copyName: '複製歌名'
   },
   message: {
     downloading: '正在下載中，請稍候...',

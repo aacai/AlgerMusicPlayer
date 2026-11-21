@@ -1,6 +1,5 @@
 <template>
   <n-dropdown
-    v-if="isElectron"
     :show="show"
     :x="x"
     :y="y"
@@ -21,7 +20,8 @@ import { useI18n } from 'vue-i18n';
 
 import { useUserStore } from '@/store';
 import type { SongResult } from '@/types/music';
-import { getImgUrl, isElectron } from '@/utils';
+import { getImgUrl } from '@/utils';
+import { copyText } from '@/utils/clipboard';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -154,6 +154,11 @@ const dropdownOptions = computed<MenuOption[]>(() => {
       icon: () => h('i', { class: 'iconfont ri-play-list-2-line' })
     },
     {
+      label: t('songItem.menu.copyName'),
+      key: 'copyName',
+      icon: () => h('i', { class: 'iconfont ri-file-copy-line' })
+    },
+    {
       type: 'divider',
       key: 'd1'
     },
@@ -211,6 +216,15 @@ const dropdownOptions = computed<MenuOption[]>(() => {
   return options;
 });
 
+async function copySongName(): Promise<void> {
+  const copied = await copyText(String(props.item.name || ''));
+  if (copied) {
+    message.success(t('common.copySuccess'));
+  } else {
+    message.error(t('common.copyFailed'));
+  }
+}
+
 // 处理选择
 const handleSelect = (key: string | number) => {
   emits('update:show', false);
@@ -224,6 +238,9 @@ const handleSelect = (key: string | number) => {
       break;
     case 'playNext':
       emits('play-next');
+      break;
+    case 'copyName':
+      void copySongName();
       break;
     case 'addToPlaylist':
       if (!userStore.hasRealAuth) {

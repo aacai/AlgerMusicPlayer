@@ -2,6 +2,8 @@ import { computed } from 'vue';
 
 import { useSettingsStore } from '@/store/modules/settings';
 
+export { secondToMinute } from './time';
+
 // 设置歌手背景图片
 export const setBackgroundImg = (url: String) => {
   return `background-image:url(${url})`;
@@ -46,20 +48,6 @@ export const calculateAnimationDelay = (index: any, baseDelay: number = 0.03): s
 };
 
 // 将秒转换为时长字符串：<1 小时为 mm:ss，>=1 小时进位为 h:mm:ss
-export const secondToMinute = (s: number) => {
-  if (!s || s < 0) {
-    return '00:00';
-  }
-  const hour: number = Math.floor(s / 3600);
-  const minute: number = Math.floor((s % 3600) / 60);
-  const second: number = Math.floor(s % 60);
-  const pad = (n: number): string => (n > 9 ? `${n}` : `0${n}`);
-  if (hour > 0) {
-    return `${hour}:${pad(minute)}:${pad(second)}`;
-  }
-  return `${pad(minute)}:${pad(second)}`;
-};
-
 // 格式化数字 千,万, 百万, 千万,亿
 const units = [
   { value: 1e8, symbol: '亿' },

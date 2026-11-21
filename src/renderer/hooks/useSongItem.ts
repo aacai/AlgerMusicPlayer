@@ -1,5 +1,5 @@
 import { useMessage } from 'naive-ui';
-import { computed, ref } from 'vue';
+import { computed, onScopeDispose, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { usePlayerStore, useRecommendStore } from '@/store';
@@ -178,6 +178,31 @@ export function useSongItem(props: { item: SongResult; canRemove?: boolean }) {
     dropdownY.value = e.clientY;
   };
 
+  // 触屏长按唤起同一个菜单；拖拽手柄交给 SortableJS，避免冲突
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  const cancelLongPress = () => {
+    if (longPressTimer !== null) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+  const startLongPress = (e: TouchEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('.drag-handle')) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const x = touch.clientX;
+    const y = touch.clientY;
+    cancelLongPress();
+    longPressTimer = setTimeout(() => {
+      showDropdown.value = true;
+      dropdownX.value = x;
+      dropdownY.value = y;
+      longPressTimer = null;
+    }, 500);
+  };
+  onScopeDispose(cancelLongPress);
+
   // 处理艺术家点击
   const handleArtistClick = (id: number) => {
     navigateToArtist(id);
@@ -217,6 +242,8 @@ export function useSongItem(props: { item: SongResult; canRemove?: boolean }) {
     formatDuration,
     handleContextMenu,
     handleMenuClick,
+    startLongPress,
+    cancelLongPress,
     handleArtistClick,
     handleMouseEnter,
     handleMouseLeave,

@@ -9,7 +9,8 @@ export default {
     unfavorite: 'いいね解除',
     removeFromPlaylist: 'プレイリストから削除',
     dislike: '嫌い',
-    undislike: '嫌い解除'
+    undislike: '嫌い解除',
+    copyName: '曲名をコピー'
   },
   message: {
     downloading: 'ダウンロード中です。しばらくお待ちください...',

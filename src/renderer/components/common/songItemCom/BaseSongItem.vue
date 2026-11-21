@@ -2,6 +2,10 @@
   <div
     class="song-item"
     @contextmenu.prevent="handleContextMenu"
+    @touchstart.passive="startLongPress"
+    @touchmove="cancelLongPress"
+    @touchend="cancelLongPress"
+    @touchcancel="cancelLongPress"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
     @dblclick.stop="handlePlay(item)"
@@ -13,7 +17,6 @@
     <slot name="operating"></slot>
 
     <song-item-dropdown
-      v-if="isElectron"
       :item="item"
       :show="showDropdown"
       :x="dropdownX"
@@ -36,7 +39,6 @@
 <script lang="ts" setup>
 import { useSongItem } from '@/hooks/useSongItem';
 import type { SongResult } from '@/types/music';
-import { isElectron } from '@/utils';
 
 import SongItemDropdown from './SongItemDropdown.vue';
 
@@ -69,6 +71,8 @@ const {
   handlePlayNext,
   handleContextMenu,
   handleMenuClick,
+  startLongPress,
+  cancelLongPress,
   handleArtistClick,
   handleMouseEnter,
   handleMouseLeave,
